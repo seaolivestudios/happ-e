@@ -1,22 +1,40 @@
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Tabs } from 'expo-router';
-import React from 'react';
+import { useEffect, useState } from 'react';
+import { Dimensions, Platform } from 'react-native';
 
 export default function TabLayout() {
+  const dim = Dimensions.get('window');
+  const [isLandscape, setIsLandscape] = useState(dim.width > dim.height);
+
+  useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) => {
+      setIsLandscape(window.width > window.height);
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2EC4B6',
+        tabBarActiveTintColor: '#FFC300',
         tabBarInactiveTintColor: '#888888',
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: {
-          backgroundColor: '#2D3047',
-          borderTopWidth: 0,
-          height: 60,
-          paddingBottom: 8,
-        },
+        tabBarStyle: isLandscape
+          ? { display: 'none', height: 0, position: 'absolute' }
+          : {
+              backgroundColor: '#000000',
+              borderTopWidth: 2,
+              borderTopColor: '#FFC300',
+              height: 60,
+              paddingBottom: 8,
+              ...Platform.select({
+                ios: { backgroundColor: '#000000' },
+                android: { backgroundColor: '#000000' },
+              }),
+            },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
