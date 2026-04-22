@@ -7,11 +7,11 @@ const cardWidth = screen.width - 24;
 const imageHeight = cardWidth * (5 / 4);
 
 const initialPosts = [
-  { id: '1', user: '@stephen', text: 'Welcome to Happ-E.', type: 'post', image: 'https://picsum.photos/seed/workshop/600/750', widescreen: true, likes: 12, comments: [] },
-  { id: '2', user: '✦ Inspire', text: '"The secret of getting ahead is getting started."', author: '— Mark Twain', type: 'inspire', likes: 34, comments: [] },
-  { id: '3', user: '@creative', text: 'Made this today.', type: 'post', image: 'https://picsum.photos/seed/woodwork/600/750', widescreen: true, likes: 8, comments: [] },
-  { id: '4', user: '✦ Inspire', text: '"In the middle of every difficulty lies opportunity."', author: '— Albert Einstein', type: 'inspire', likes: 21, comments: [] },
-  { id: '5', user: '@outdoors', text: 'Sunrise on the water.', type: 'post', image: 'https://picsum.photos/seed/nature/600/750', widescreen: true, likes: 19, comments: [] },
+  { id: '1', user: '@stephen', text: 'Welcome to Happ-E.', type: 'post', image: 'https://picsum.photos/seed/workshop/600/750', widescreen: true, smiles: 12, comments: [] },
+  { id: '2', user: '✦ Inspire', text: '"The secret of getting ahead is getting started."', author: '— Mark Twain', type: 'inspire', smiles: 34, comments: [] },
+  { id: '3', user: '@creative', text: 'Made this today.', type: 'post', image: 'https://picsum.photos/seed/woodwork/600/750', widescreen: true, smiles: 8, comments: [] },
+  { id: '4', user: '✦ Inspire', text: '"In the middle of every difficulty lies opportunity."', author: '— Albert Einstein', type: 'inspire', smiles: 21, comments: [] },
+  { id: '5', user: '@outdoors', text: 'Sunrise on the water.', type: 'post', image: 'https://picsum.photos/seed/nature/600/750', widescreen: true, smiles: 19, comments: [] },
 ];
 
 export default function HomeScreen() {
@@ -41,8 +41,8 @@ export default function HomeScreen() {
     Animated.spring(menuAnim, { toValue: -300, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setMenuOpen(false));
   };
 
-  const handleLike = (id: string) => {
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
+  const handleSmile = (id: string) => {
+    setPosts(prev => prev.map(p => p.id === id ? { ...p, smiles: p.smiles + 1 } : p));
   };
 
   const handleComment = (id: string, text: string) => {
@@ -57,12 +57,12 @@ export default function HomeScreen() {
   const renderActions = (item: any) => (
     <View>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
-          <Text style={styles.actionIcon}>♡</Text>
-          <Text style={styles.actionCount}>{item.likes}</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleSmile(item.id)}>
+          <Text style={styles.actionIcon}>🙂</Text>
+          <Text style={styles.actionCount}>{item.smiles}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => { setActiveIndex(posts.findIndex(p => p.id === item.id)); setCommentModal(true); }}>
-          <Text style={styles.actionIcon}>◻ Comment</Text>
+          <Text style={styles.actionIcon}>💬 Comment</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
           <Text style={styles.actionIcon}>↗ Share</Text>
@@ -134,12 +134,12 @@ export default function HomeScreen() {
         </View>
       )}
       <View style={styles.sideActions}>
-        <TouchableOpacity style={styles.sideBtn} onPress={() => handleLike(item.id)}>
-          <Text style={styles.sideIcon}>♡</Text>
-          <Text style={styles.sideCount}>{item.likes}</Text>
+        <TouchableOpacity style={styles.sideBtn} onPress={() => handleSmile(item.id)}>
+          <Text style={styles.sideIcon}>🙂</Text>
+          <Text style={styles.sideCount}>{item.smiles}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.sideBtn} onPress={() => { setActiveIndex(index); setCommentModal(true); }}>
-          <Text style={styles.sideIcon}>◻</Text>
+          <Text style={styles.sideIcon}>💬</Text>
           <Text style={styles.sideCount}>{item.comments.length}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.sideBtn}>
@@ -158,7 +158,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {!isLandscape && (
         <View style={styles.header}>
-         <Image source={require('../../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
+          <Image source={require('../../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
           <TouchableOpacity onPress={openMenu} style={styles.hamburger}>
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
@@ -193,7 +193,7 @@ export default function HomeScreen() {
 
       <Animated.View style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}>
         <View style={styles.menuHeader}>
-          <Text style={styles.menuLogo}>Happ-E</Text>
+          <Image source={require('../../assets/images/Logo v_1.png')} style={styles.menuLogo} resizeMode="contain" />
           <TouchableOpacity onPress={closeMenu}>
             <Text style={styles.menuClose}>✕</Text>
           </TouchableOpacity>
@@ -293,10 +293,10 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#000000', borderBottomWidth: 3, borderBottomColor: '#FFC300' },
-  logoImage: { width: 120, height: 40 },
-  hamburger: { padding: 8, gap: 5, justifyContent: 'center' },
-  hamburgerLine: { width: 24, height: 2, backgroundColor: '#FFC300', borderRadius: 2 },
+  header: { paddingTop: 60, paddingBottom: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#000000', borderBottomWidth: 3, borderBottomColor: '#FFC300' },
+  logoImage: { width: 120, height: 44 },
+  hamburger: { padding: 8, gap: 6, justifyContent: 'center', alignItems: 'flex-end' },
+  hamburgerLine: { width: 26, height: 3, backgroundColor: '#FFC300', borderRadius: 3 },
   feed: { padding: 12 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#E0E0E0', overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   horizontalInspireAuthor: { fontSize: 15, color: '#FFC300', marginTop: 20, fontWeight: '600' },
   sideActions: { position: 'absolute', right: 16, bottom: 60, alignItems: 'center', gap: 20 },
   sideBtn: { alignItems: 'center', gap: 4 },
-  sideIcon: { fontSize: 26, color: '#FFFFFF' },
+  sideIcon: { fontSize: 26 },
   sideCount: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
   progressDots: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   menuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 },
   menu: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 280, backgroundColor: '#111111', zIndex: 20, borderRightWidth: 2, borderRightColor: '#FFC300' },
   menuHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
-  menuLogo: { fontSize: 24, fontWeight: 'bold', color: '#FFC300' },
+  menuLogo: { width: 100, height: 40 },
   menuClose: { fontSize: 20, color: '#888888' },
   menuUserRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 20 },
   menuAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },

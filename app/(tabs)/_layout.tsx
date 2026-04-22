@@ -48,12 +48,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Inspire',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="star.fill" color={color} />,
-        }}
-      />
+  name="explore"
+  options={{
+    title: 'Connect',
+    tabBarIcon: ({ color }) => <IconSymbol size={26} name="heart.fill" color={color} />,
+  }}
+/>
       <Tabs.Screen
         name="create"
         options={{
@@ -73,11 +73,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="notifications"
-        options={{
-          href: null,
-        }}
-      />
+  name="notifications"
+  options={{
+    title: 'Smiles',
+    tabBarIcon: ({ color }) => <IconSymbol size={26} name="face.smiling.fill" color={color} />,
+  }}
+/>
       <Tabs.Screen
         name="profile"
         options={{
