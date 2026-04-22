@@ -1,5 +1,6 @@
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const screen = Dimensions.get('window');
 const cardWidth = screen.width - 24;
@@ -19,6 +20,8 @@ export default function HomeScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [commentModal, setCommentModal] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuAnim = useRef(new Animated.Value(-300)).current;
   const flatListRef = useRef<FlatList>(null);
   const isLandscape = dimensions.width > dimensions.height;
 
@@ -28,6 +31,15 @@ export default function HomeScreen() {
     });
     return () => subscription.remove();
   }, []);
+
+  const openMenu = () => {
+    setMenuOpen(true);
+    Animated.spring(menuAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
+  };
+
+  const closeMenu = () => {
+    Animated.spring(menuAnim, { toValue: -300, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setMenuOpen(false));
+  };
 
   const handleLike = (id: string) => {
     setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
@@ -146,8 +158,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {!isLandscape && (
         <View style={styles.header}>
-          <Text style={styles.logo}>Happ-E</Text>
-          <Text style={styles.tagline}>Real people. Real moments.</Text>
+         <Image source={require('../../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
+          <TouchableOpacity onPress={openMenu} style={styles.hamburger}>
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -170,6 +186,52 @@ export default function HomeScreen() {
           {posts.map(renderVerticalCard)}
         </ScrollView>
       )}
+
+      {menuOpen && (
+        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={closeMenu} />
+      )}
+
+      <Animated.View style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}>
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuLogo}>Happ-E</Text>
+          <TouchableOpacity onPress={closeMenu}>
+            <Text style={styles.menuClose}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.menuUserRow}>
+          <View style={styles.menuAvatar}>
+            <Text style={styles.menuAvatarText}>S</Text>
+          </View>
+          <View>
+            <Text style={styles.menuName}>Stephen</Text>
+            <Text style={styles.menuHandle}>@stephen</Text>
+          </View>
+        </View>
+
+        <View style={styles.menuDivider} />
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); setTimeout(() => router.push('/(tabs)/profile' as any), 300); }}>
+          <Text style={styles.menuItemIcon}>◉</Text>
+          <Text style={styles.menuItemText}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); setTimeout(() => router.push('/(tabs)/settings' as any), 300); }}>
+          <Text style={styles.menuItemIcon}>⚙</Text>
+          <Text style={styles.menuItemText}>Settings</Text>
+        </TouchableOpacity>
+
+        <View style={styles.menuDivider} />
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); setTimeout(() => router.replace('/login'), 300); }}>
+          <Text style={[styles.menuItemIcon, styles.menuSignOut]}>↩</Text>
+          <Text style={[styles.menuItemText, styles.menuSignOut]}>Sign Out</Text>
+        </TouchableOpacity>
+
+        <View style={styles.menuFooter}>
+          <Text style={styles.menuFooterText}>No ads · No bots · No noise</Text>
+        </View>
+      </Animated.View>
 
       <Modal
         visible={commentModal}
@@ -231,9 +293,10 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { paddingTop: 60, paddingBottom: 16, alignItems: 'center', backgroundColor: '#000000', borderBottomWidth: 3, borderBottomColor: '#FFC300' },
-  logo: { fontSize: 32, fontWeight: 'bold', color: '#FFC300' },
-  tagline: { fontSize: 13, color: '#FFFFFF', marginTop: 4 },
+  header: { paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#000000', borderBottomWidth: 3, borderBottomColor: '#FFC300' },
+  logoImage: { width: 120, height: 40 },
+  hamburger: { padding: 8, gap: 5, justifyContent: 'center' },
+  hamburgerLine: { width: 24, height: 2, backgroundColor: '#FFC300', borderRadius: 2 },
   feed: { padding: 12 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#E0E0E0', overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
@@ -274,6 +337,23 @@ const styles = StyleSheet.create({
   progressDots: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
   progressDotActive: { backgroundColor: '#FFC300', width: 18 },
+  menuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10 },
+  menu: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 280, backgroundColor: '#111111', zIndex: 20, borderRightWidth: 2, borderRightColor: '#FFC300' },
+  menuHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
+  menuLogo: { fontSize: 24, fontWeight: 'bold', color: '#FFC300' },
+  menuClose: { fontSize: 20, color: '#888888' },
+  menuUserRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 20 },
+  menuAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
+  menuAvatarText: { fontSize: 20, fontWeight: '700', color: '#000000' },
+  menuName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  menuHandle: { fontSize: 13, color: '#888888', marginTop: 2 },
+  menuDivider: { height: 0.5, backgroundColor: '#333333', marginHorizontal: 20, marginVertical: 8 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16 },
+  menuItemIcon: { fontSize: 20, color: '#FFC300', width: 24, textAlign: 'center' },
+  menuItemText: { fontSize: 16, color: '#FFFFFF', fontWeight: '500' },
+  menuSignOut: { color: '#FF4444' },
+  menuFooter: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
+  menuFooterText: { fontSize: 11, color: '#444444' },
   modalContainer: { flex: 1, justifyContent: 'flex-end' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   modalBox: { backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 2, borderTopColor: '#FFC300', padding: 20, maxHeight: '70%' },

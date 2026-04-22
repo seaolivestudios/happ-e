@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,7 +15,7 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
-          <Text style={styles.logo}>Happ-E</Text>
+          <Image source={require('../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
           <Text style={styles.tagline}>Real people. Real moments.</Text>
           <View style={styles.pillRow}>
             <View style={styles.pill}><Text style={styles.pillText}>No ads</Text></View>
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
   scroll: { flexGrow: 1, padding: 24, justifyContent: 'center' },
   hero: { alignItems: 'center', marginBottom: 36 },
-  logo: { fontSize: 52, fontWeight: 'bold', color: '#FFC300', letterSpacing: -1 },
-  tagline: { fontSize: 15, color: '#FFFFFF', marginTop: 6, opacity: 0.8 },
+  logoImage: { width: 220, height: 88, marginBottom: 12 },
+  tagline: { fontSize: 15, color: '#FFFFFF', opacity: 0.8 },
   pillRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   pill: { backgroundColor: '#1A1A1A', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#FFC300' },
   pillText: { fontSize: 12, color: '#FFC300', fontWeight: '600' },
