@@ -86,7 +86,7 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Link href="/(tabs)" asChild>
+          <Link href="/onboarding" asChild>
             <TouchableOpacity style={styles.btn}>
               <Text style={styles.btnText}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
             </TouchableOpacity>
