@@ -2,7 +2,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 
 export default function TabLayout() {
   const dim = Dimensions.get('window');
@@ -55,6 +55,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="create"
+        options={{
+          title: '',
+          tabBarIcon: () => (
+            <View style={styles.postBtn}>
+              <Text style={styles.postBtnText}>+</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
@@ -64,3 +75,8 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  postBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  postBtnText: { fontSize: 28, fontWeight: '700', color: '#000000', lineHeight: 32 },
+});
