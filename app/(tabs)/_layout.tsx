@@ -1,5 +1,5 @@
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
@@ -44,16 +44,16 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-  name="explore"
-  options={{
-    title: 'Connect',
-    tabBarIcon: ({ color }) => <IconSymbol size={26} name="heart.fill" color={color} />,
-  }}
-/>
+        name="explore"
+        options={{
+          title: 'Connect',
+          tabBarIcon: ({ color }) => <Ionicons name="heart" size={24} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="create"
         options={{
@@ -69,16 +69,22 @@ export default function TabLayout() {
         name="search"
         options={{
           title: 'Discover',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="magnifyingglass" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="search" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-  name="notifications"
-  options={{
-    title: 'Smiles',
-    tabBarIcon: ({ color }) => <IconSymbol size={26} name="face.smiling.fill" color={color} />,
-  }}
-/>
+        name="sparks"
+        options={{
+          title: 'Sparks',
+          tabBarIcon: ({ color }) => <Ionicons name="flash" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

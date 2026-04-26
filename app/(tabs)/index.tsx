@@ -8,6 +8,8 @@ const screen = Dimensions.get('window');
 const cardWidth = screen.width - 24;
 const imageHeight = cardWidth * (5 / 4);
 const DRAWER_HIDDEN = screen.width * 2;
+const SPARK_HEIGHT = 0;
+const CARD_HEIGHT = imageHeight + 140;
 
 const initialPosts = [
   { id: '1', user: '@stephen', name: 'Stephen Olmo', text: 'First project of the year done.', type: 'post', image: 'https://picsum.photos/seed/wood1/600/750', widescreen: true, smiles: 12, comments: [] },
@@ -44,9 +46,12 @@ export default function HomeScreen() {
   const [commentPost, setCommentPost] = useState<any>(null);
   const [newComment, setNewComment] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentPostId, setCurrentPostId] = useState(initialPosts[0].id);
   const menuAnim = useRef(new Animated.Value(-300)).current;
   const commentAnim = useRef(new Animated.Value(DRAWER_HIDDEN)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
+  const landscapeScrollRef = useRef<ScrollView>(null);
+  const portraitScrollRef = useRef<ScrollView>(null);
   const isLandscape = dimensions.width > dimensions.height;
   const widescreenPosts = posts.filter(p => p.widescreen);
 
@@ -57,6 +62,23 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, []);
 
+  useEffect(() => {
+    if (isLandscape) {
+      const index = widescreenPosts.findIndex(p => p.id === currentPostId);
+      const targetIndex = index >= 0 ? index : 0;
+      setTimeout(() => {
+        landscapeScrollRef.current?.scrollTo({ y: targetIndex * dimensions.height, animated: false });
+      }, 50);
+    } else {
+      const index = posts.findIndex(p => p.id === currentPostId);
+      const targetIndex = index >= 0 ? index : 0;
+      const scrollY = SPARK_HEIGHT + (targetIndex * CARD_HEIGHT);
+      setTimeout(() => {
+        portraitScrollRef.current?.scrollTo({ y: scrollY, animated: false });
+      }, 50);
+    }
+  }, [isLandscape]);
+
   const openMenu = () => {
     setMenuOpen(true);
     Animated.spring(menuAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
@@ -66,7 +88,7 @@ export default function HomeScreen() {
     Animated.spring(menuAnim, { toValue: -300, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setMenuOpen(false));
   };
 
-const openComments = (post: any) => {
+  const openComments = (post: any) => {
     setCommentPost(post);
     commentAnim.setValue(DRAWER_HIDDEN);
     commentOpacity.setValue(0);
@@ -98,6 +120,14 @@ const openComments = (post: any) => {
     if (!text || !text.trim()) return;
     setPosts(prev => prev.map(p => p.id === id ? { ...p, comments: [...p.comments, { user: '@you', text }] } : p));
     setNewComment('');
+  };
+
+  const handlePortraitScroll = (e: any) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const adjustedOffset = Math.max(0, offsetY - SPARK_HEIGHT);
+    const index = Math.round(adjustedOffset / CARD_HEIGHT);
+    const clampedIndex = Math.min(index, posts.length - 1);
+    if (posts[clampedIndex]) setCurrentPostId(posts[clampedIndex].id);
   };
 
   const ImageCard = ({ item }: { item: any }) => {
@@ -247,17 +277,21 @@ const openComments = (post: any) => {
     <View style={styles.container}>
       {!isLandscape && (
         <View style={styles.header}>
-          <Image source={require('../../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
           <TouchableOpacity onPress={openMenu} style={styles.hamburger}>
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
+          </TouchableOpacity>
+          <Image source={require('../../assets/images/Logo v_1.png')} style={styles.logoImage} resizeMode="contain" />
+          <TouchableOpacity style={styles.smilesBtn} onPress={() => router.push('/(tabs)/notifications' as any)}>
+            <Ionicons name="happy-outline" size={26} color="#FFC300" />
           </TouchableOpacity>
         </View>
       )}
 
       {isLandscape ? (
         <ScrollView
+          ref={landscapeScrollRef}
           pagingEnabled
           showsVerticalScrollIndicator={false}
           decelerationRate="fast"
@@ -267,7 +301,12 @@ const openComments = (post: any) => {
           {widescreenPosts.map(item => renderHorizontalCard(item))}
         </ScrollView>
       ) : (
-        <ScrollView style={styles.feed}>
+        <ScrollView
+          ref={portraitScrollRef}
+          style={styles.feed}
+          onScroll={handlePortraitScroll}
+          scrollEventThrottle={16}
+        >
           {posts.map(renderVerticalCard)}
         </ScrollView>
       )}
@@ -313,13 +352,9 @@ const openComments = (post: any) => {
 
       {commentVisible && (
         <>
-          <Animated.View
-            style={[styles.commentOverlay, { opacity: commentOpacity }]}
-            pointerEvents="auto"
-          >
+          <Animated.View style={[styles.commentOverlay, { opacity: commentOpacity }]} pointerEvents="auto">
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeComments} />
           </Animated.View>
-
           <Animated.View style={[styles.commentDrawer, { transform: [{ translateX: commentAnim }] }]}>
             <View style={styles.commentDrawerHeader}>
               <Text style={styles.commentDrawerTitle}>Comments</Text>
@@ -364,11 +399,12 @@ const openComments = (post: any) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { paddingTop: 60, paddingBottom: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#000000', borderBottomWidth: 3, borderBottomColor: '#FFC300' },
-  logoImage: { width: 120, height: 44 },
-  hamburger: { padding: 8, gap: 6, justifyContent: 'center', alignItems: 'flex-end' },
+  hamburger: { width: 44, padding: 8, gap: 6, justifyContent: 'center', alignItems: 'flex-start' },
   hamburgerLine: { width: 26, height: 3, backgroundColor: '#FFC300', borderRadius: 3 },
-  feed: { padding: 12 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: '#E0E0E0', overflow: 'hidden' },
+  logoImage: { width: 120, height: 44 },
+  smilesBtn: { width: 44, padding: 8, alignItems: 'flex-end' },
+  feed: { backgroundColor: '#F7F7F7' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12, marginHorizontal: 12, borderWidth: 1, borderColor: '#E0E0E0', overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontWeight: '700', color: '#000000' },
