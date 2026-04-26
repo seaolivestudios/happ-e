@@ -3,6 +3,7 @@ import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { clearSession } from '../auth';
 
 const screen = Dimensions.get('window');
 const cardWidth = screen.width - 24;
@@ -341,7 +342,7 @@ export default function HomeScreen() {
           <Text style={styles.menuItemText}>Settings</Text>
         </TouchableOpacity>
         <View style={styles.menuDivider} />
-        <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); setTimeout(() => router.replace('/login'), 300); }}>
+        <TouchableOpacity style={styles.menuItem} onPress={async () => { closeMenu(); await clearSession(); setTimeout(() => router.replace('/login'), 300); }}>
           <Ionicons name="log-out-outline" size={22} color="#FF4444" />
           <Text style={[styles.menuItemText, styles.menuSignOut]}>Sign Out</Text>
         </TouchableOpacity>
