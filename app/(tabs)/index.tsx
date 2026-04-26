@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../api';
-import { clearSession, getToken } from '../auth';
+import { getToken } from '../auth';
 
 const screen = Dimensions.get('window');
 const cardWidth = screen.width - 24;
@@ -13,37 +13,30 @@ const DRAWER_HIDDEN = screen.width * 2;
 const SPARK_HEIGHT = 0;
 const CARD_HEIGHT = imageHeight + 140;
 
-const initialPosts = [
-  { id: '1', user: '@stephen', name: 'Stephen Olmo', text: 'First project of the year done.', type: 'post', image: 'https://picsum.photos/seed/wood1/600/750', widescreen: true, smiles: 12, comments: [] },
-  { id: '2', user: '✦ Inspire', text: '"The secret of getting ahead is getting started."', author: '— Mark Twain', type: 'inspire', smiles: 34, comments: [], widescreen: true },
-  { id: '3', user: '@jake', name: 'Jake Miller', text: 'Spent the whole weekend in the shop.', type: 'video', video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4', widescreen: true, smiles: 8, comments: [] },
-  { id: '4', user: '@maria', name: 'Maria Santos', text: 'Golden hour never disappoints.', type: 'post', image: 'https://picsum.photos/seed/sunset1/600/750', widescreen: true, smiles: 29, comments: [] },
-  { id: '5', user: '✦ Inspire', text: '"In the middle of every difficulty lies opportunity."', author: '— Albert Einstein', type: 'inspire', smiles: 21, comments: [], widescreen: true },
-  { id: '6', user: '@outdoors', name: 'Tom Harris', text: 'Sunrise on the water. Nothing better.', type: 'post', image: 'https://picsum.photos/seed/lake1/600/750', widescreen: true, smiles: 19, comments: [] },
-  { id: '7', user: '@sarah', name: 'Sarah Creates', text: 'New canvas, new beginning.', type: 'post', image: 'https://picsum.photos/seed/art1/600/750', widescreen: false, smiles: 14, comments: [] },
-  { id: '8', user: '✦ Inspire', text: '"Creativity is intelligence having fun."', author: '— Albert Einstein', type: 'inspire', smiles: 44, comments: [], widescreen: true },
-  { id: '9', user: '@craftsman', name: 'Joe Briggs', text: 'Hand cut dovetails. Worth every minute.', type: 'video', video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4', widescreen: true, smiles: 31, comments: [] },
-  { id: '10', user: '@fishing', name: 'Dale Reeves', text: 'Early morning. Just me and the water.', type: 'post', image: 'https://picsum.photos/seed/fish1/600/750', widescreen: true, smiles: 22, comments: [] },
-  { id: '11', user: '✦ Inspire', text: '"The only way to do great work is to love what you do."', author: '— Steve Jobs', type: 'inspire', smiles: 67, comments: [], widescreen: true },
-  { id: '12', user: '@potter', name: 'Grace Liu', text: 'Throwing on the wheel this morning.', type: 'post', image: 'https://picsum.photos/seed/clay1/600/750', widescreen: false, smiles: 18, comments: [] },
-  { id: '13', user: '@hiker', name: 'Ben Torres', text: 'Trail conditions were perfect today.', type: 'video', video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/VolkswagenGTIReview.mp4', widescreen: true, smiles: 25, comments: [] },
-  { id: '14', user: '@baker', name: 'Lily Chen', text: 'Sourdough day. The smell is everything.', type: 'post', image: 'https://picsum.photos/seed/bread1/600/750', widescreen: false, smiles: 33, comments: [] },
-  { id: '15', user: '✦ Inspire', text: '"Not all those who wander are lost."', author: '— J.R.R. Tolkien', type: 'inspire', smiles: 89, comments: [], widescreen: true },
-  { id: '16', user: '@guitar', name: 'Mike Davis', text: 'New song coming together.', type: 'video', video: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4', widescreen: true, smiles: 41, comments: [] },
-  { id: '17', user: '@garden', name: 'Anne Walsh', text: 'First blooms of the season.', type: 'post', image: 'https://picsum.photos/seed/flower1/600/750', widescreen: true, smiles: 27, comments: [] },
-  { id: '18', user: '✦ Inspire', text: '"Joy is not in things; it is in us."', author: '— Richard Wagner', type: 'inspire', smiles: 52, comments: [], widescreen: true },
-  { id: '19', user: '@woodcraft', name: 'Ray Santos', text: 'Finishing a rocking chair I started for my dad.', type: 'post', image: 'https://picsum.photos/seed/chair1/600/750', widescreen: true, smiles: 61, comments: [] },
-  { id: '20', user: '@cyclist', name: 'Sam Lee', text: '50 miles this morning. Legs are done.', type: 'post', image: 'https://picsum.photos/seed/bike1/600/750', widescreen: true, smiles: 19, comments: [] },
-  { id: '21', user: '✦ Inspire', text: '"It does not matter how slowly you go as long as you do not stop."', author: '— Confucius', type: 'inspire', smiles: 73, comments: [], widescreen: true },
-  { id: '22', user: '@knitter', name: 'Dana Fox', text: 'Finally finished this blanket. Six months in the making.', type: 'post', image: 'https://picsum.photos/seed/textile1/600/750', widescreen: false, smiles: 38, comments: [] },
-  { id: '23', user: '@surfer', name: 'Chris Park', text: 'Perfect sets this morning.', type: 'post', image: 'https://picsum.photos/seed/ocean1/600/750', widescreen: true, smiles: 44, comments: [] },
-  { id: '24', user: '@sculptor', name: 'Rita Patel', text: 'New piece taking shape in the studio.', type: 'post', image: 'https://picsum.photos/seed/studio1/600/750', widescreen: true, smiles: 16, comments: [] },
-  { id: '25', user: '✦ Inspire', text: '"The present moment is the only moment available to us."', author: '— Thich Nhat Hanh', type: 'inspire', smiles: 91, comments: [], widescreen: true },
-];
-
 export default function HomeScreen() {
   const [dimensions, setDimensions] = useState({ width: screen.width, height: screen.height });
-  const [posts, setPosts] = useState(initialPosts);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [smiledPosts, setSmiledPosts] = useState<Set<string>>(new Set());
+  const [commentVisible, setCommentVisible] = useState(false);
+  const [commentPost, setCommentPost] = useState<any>(null);
+  const [newComment, setNewComment] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentPostId, setCurrentPostId] = useState('');
+  const menuAnim = useRef(new Animated.Value(-300)).current;
+  const commentAnim = useRef(new Animated.Value(DRAWER_HIDDEN)).current;
+  const commentOpacity = useRef(new Animated.Value(0)).current;
+  const landscapeScrollRef = useRef<ScrollView>(null);
+  const portraitScrollRef = useRef<ScrollView>(null);
+  const isLandscape = dimensions.width > dimensions.height;
+  const widescreenPosts = posts.filter(p => p.widescreen);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
+    return () => subscription.remove();
+  }, []);
+
   useEffect(() => {
     const loadPosts = async () => {
       try {
@@ -64,31 +57,13 @@ export default function HomeScreen() {
             author: p.author_quote,
           }));
           setPosts(formatted);
+          if (formatted.length > 0) setCurrentPostId(formatted[0].id);
         }
       } catch (err) {
-        console.log('Using local posts as fallback');
+        console.log('Could not load posts:', err);
       }
     };
     loadPosts();
-  }, []);
-  const [commentVisible, setCommentVisible] = useState(false);
-  const [commentPost, setCommentPost] = useState<any>(null);
-  const [newComment, setNewComment] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [currentPostId, setCurrentPostId] = useState(initialPosts[0].id);
-  const menuAnim = useRef(new Animated.Value(-300)).current;
-  const commentAnim = useRef(new Animated.Value(DRAWER_HIDDEN)).current;
-  const commentOpacity = useRef(new Animated.Value(0)).current;
-  const landscapeScrollRef = useRef<ScrollView>(null);
-  const portraitScrollRef = useRef<ScrollView>(null);
-  const isLandscape = dimensions.width > dimensions.height;
-  const widescreenPosts = posts.filter(p => p.widescreen);
-
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      setDimensions({ width: window.width, height: window.height });
-    });
-    return () => subscription.remove();
   }, []);
 
   useEffect(() => {
@@ -141,14 +116,37 @@ export default function HomeScreen() {
     });
   };
 
-  const handleSmile = (id: string) => {
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, smiles: p.smiles + 1 } : p));
+  const handleSmile = async (id: string) => {
+    const alreadySmiled = smiledPosts.has(id);
+    if (alreadySmiled) {
+      setSmiledPosts(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, smiles: Math.max(0, p.smiles - 1) } : p));
+    } else {
+      setSmiledPosts(prev => new Set([...prev, id]));
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, smiles: p.smiles + 1 } : p));
+      try {
+        const token = await getToken();
+        await api.smilePost(id, token || '');
+      } catch (err) {
+        console.log('Smile sync error:', err);
+      }
+    }
   };
 
-  const handleComment = (id: string, text: string) => {
+  const handleComment = async (id: string, text: string) => {
     if (!text || !text.trim()) return;
     setPosts(prev => prev.map(p => p.id === id ? { ...p, comments: [...p.comments, { user: '@you', text }] } : p));
     setNewComment('');
+    try {
+      const token = await getToken();
+      await api.commentPost(id, text, '@you', token || '');
+    } catch (err) {
+      console.log('Comment sync error:', err);
+    }
   };
 
   const handlePortraitScroll = (e: any) => {
@@ -178,21 +176,30 @@ export default function HomeScreen() {
     );
   };
 
-  const renderActions = (item: any, dark = false) => (
-    <View style={[styles.actions, dark && styles.actionsDark]}>
-      <TouchableOpacity style={styles.actionBtn} onPress={() => handleSmile(item.id)}>
-        <Ionicons name="happy-outline" size={22} color={dark ? '#FFFFFF' : '#333333'} />
-        <Text style={[styles.actionCount, dark && styles.actionCountDark]}>{item.smiles}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionBtn} onPress={() => openComments(item)}>
-        <Ionicons name="chatbubble-outline" size={22} color={dark ? '#FFFFFF' : '#333333'} />
-        <Text style={[styles.actionCount, dark && styles.actionCountDark]}>{item.comments.length}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionBtn}>
-        <Ionicons name="arrow-redo-outline" size={22} color={dark ? '#FFFFFF' : '#333333'} />
-      </TouchableOpacity>
-    </View>
-  );
+  const renderActions = (item: any, dark = false) => {
+    const smiled = smiledPosts.has(item.id);
+    return (
+      <View style={[styles.actions, dark && styles.actionsDark]}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleSmile(item.id)}>
+          <Ionicons
+            name={smiled ? 'happy' : 'happy-outline'}
+            size={22}
+            color={smiled ? '#FFC300' : (dark ? '#FFFFFF' : '#333333')}
+          />
+          <Text style={[styles.actionCount, dark && styles.actionCountDark, smiled && styles.actionCountSmiled]}>
+            {item.smiles}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => openComments(item)}>
+          <Ionicons name="chatbubble-outline" size={22} color={dark ? '#FFFFFF' : '#333333'} />
+          <Text style={[styles.actionCount, dark && styles.actionCountDark]}>{item.comments.length}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn}>
+          <Ionicons name="arrow-redo-outline" size={22} color={dark ? '#FFFFFF' : '#333333'} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderVerticalCard = (item: any) => {
     if (item.type === 'inspire') {
@@ -201,7 +208,7 @@ export default function HomeScreen() {
           <View style={styles.inspireInner}>
             <Text style={styles.inspireLabel}>✦ Inspire</Text>
             <Text style={styles.inspireText}>{item.text}</Text>
-            {item.author && <Text style={styles.inspireAuthor}>{item.author}</Text>}
+            {item.author && <Text style={styles.inspireAuthor}>— {item.author}</Text>}
           </View>
           {renderActions(item, true)}
         </View>
@@ -212,7 +219,7 @@ export default function HomeScreen() {
         <View key={item.id} style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.user.charAt(1).toUpperCase()}</Text>
+              <Text style={styles.avatarText}>{(item.name || item.user || 'U').charAt(0).toUpperCase()}</Text>
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.cardUser}>{item.name}</Text>
@@ -241,7 +248,7 @@ export default function HomeScreen() {
       <View key={item.id} style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{item.user.charAt(1).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>{(item.name || item.user || 'U').charAt(0).toUpperCase()}</Text>
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.cardUser}>{item.name}</Text>
@@ -253,54 +260,57 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-        <ImageCard item={item} />
+        {item.image && <ImageCard item={item} />}
         <Text style={styles.cardText}>{item.text}</Text>
         {renderActions(item)}
       </View>
     );
   };
 
-  const renderHorizontalCard = (item: any) => (
-    <View key={item.id} style={[styles.horizontalCard, { width: dimensions.width, height: dimensions.height }]}>
-      {item.type === 'video' ? (
-        <Video
-          source={{ uri: item.video }}
-          style={styles.horizontalMedia}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={false}
-          isLooping
-          useNativeControls
-        />
-      ) : item.image ? (
-        <Image source={{ uri: item.image }} style={styles.horizontalMedia} resizeMode="cover" />
-      ) : (
-        <View style={styles.horizontalInspire}>
-          <Text style={styles.horizontalInspireLabel}>✦ Inspire</Text>
-          <Text style={styles.horizontalInspireText}>{item.text}</Text>
-          {item.author && <Text style={styles.horizontalInspireAuthor}>{item.author}</Text>}
+  const renderHorizontalCard = (item: any) => {
+    const smiled = smiledPosts.has(item.id);
+    return (
+      <View key={item.id} style={[styles.horizontalCard, { width: dimensions.width, height: dimensions.height }]}>
+        {item.type === 'video' ? (
+          <Video
+            source={{ uri: item.video }}
+            style={styles.horizontalMedia}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay={false}
+            isLooping
+            useNativeControls
+          />
+        ) : item.image ? (
+          <Image source={{ uri: item.image }} style={styles.horizontalMedia} resizeMode="cover" />
+        ) : (
+          <View style={styles.horizontalInspire}>
+            <Text style={styles.horizontalInspireLabel}>✦ Inspire</Text>
+            <Text style={styles.horizontalInspireText}>{item.text}</Text>
+            {item.author && <Text style={styles.horizontalInspireAuthor}>— {item.author}</Text>}
+          </View>
+        )}
+        {(item.image || item.video) && (
+          <View style={styles.horizontalBottom}>
+            <Text style={styles.horizontalUser}>{item.name || item.user}</Text>
+            <Text style={styles.horizontalText}>{item.text}</Text>
+          </View>
+        )}
+        <View style={styles.sideActions}>
+          <TouchableOpacity style={styles.sideBtn} onPress={() => handleSmile(item.id)}>
+            <Ionicons name={smiled ? 'happy' : 'happy-outline'} size={28} color={smiled ? '#FFC300' : '#FFFFFF'} />
+            <Text style={styles.sideCount}>{item.smiles}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sideBtn} onPress={() => openComments(item)}>
+            <Ionicons name="chatbubble-outline" size={28} color="#FFFFFF" />
+            <Text style={styles.sideCount}>{item.comments.length}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sideBtn}>
+            <Ionicons name="arrow-redo-outline" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-      )}
-      {(item.image || item.video) && (
-        <View style={styles.horizontalBottom}>
-          <Text style={styles.horizontalUser}>{item.name || item.user}</Text>
-          <Text style={styles.horizontalText}>{item.text}</Text>
-        </View>
-      )}
-      <View style={styles.sideActions}>
-        <TouchableOpacity style={styles.sideBtn} onPress={() => handleSmile(item.id)}>
-          <Ionicons name="happy-outline" size={28} color="#FFFFFF" />
-          <Text style={styles.sideCount}>{item.smiles}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sideBtn} onPress={() => openComments(item)}>
-          <Ionicons name="chatbubble-outline" size={28} color="#FFFFFF" />
-          <Text style={styles.sideCount}>{item.comments.length}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sideBtn}>
-          <Ionicons name="arrow-redo-outline" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -370,7 +380,7 @@ export default function HomeScreen() {
           <Text style={styles.menuItemText}>Settings</Text>
         </TouchableOpacity>
         <View style={styles.menuDivider} />
-        <TouchableOpacity style={styles.menuItem} onPress={async () => { closeMenu(); await clearSession(); setTimeout(() => router.replace('/login'), 300); }}>
+        <TouchableOpacity style={styles.menuItem} onPress={async () => { closeMenu(); const { clearSession } = await import('../auth'); await clearSession(); setTimeout(() => router.replace('/login'), 300); }}>
           <Ionicons name="log-out-outline" size={22} color="#FF4444" />
           <Text style={[styles.menuItemText, styles.menuSignOut]}>Sign Out</Text>
         </TouchableOpacity>
@@ -455,6 +465,7 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionCount: { fontSize: 13, color: '#888888' },
   actionCountDark: { color: '#FFFFFF' },
+  actionCountSmiled: { color: '#FFC300' },
   horizontalCard: { backgroundColor: '#000000', justifyContent: 'flex-end', overflow: 'hidden' },
   horizontalMedia: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   horizontalBottom: { padding: 24, paddingBottom: 40, paddingRight: 90, backgroundColor: 'rgba(0,0,0,0.55)' },
