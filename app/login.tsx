@@ -1,12 +1,45 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { api } from './api';
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing fields', 'Please enter your email and password.');
+      return;
+    }
+    if (!isLogin && !name) {
+      Alert.alert('Missing fields', 'Please enter your name.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = isLogin
+        ? await api.login(email, password)
+        : await api.register(name, email, password);
+
+      if (result.success && result.token) {
+        if (isLogin) {
+          router.replace('/(tabs)' as any);
+        } else {
+          router.replace('/onboarding' as any);
+        }
+      } else {
+        Alert.alert('Error', result.error || 'Something went wrong. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Connection Error', 'Could not connect to Happ-E servers. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -86,11 +119,17 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Link href="/onboarding" asChild>
-            <TouchableOpacity style={styles.btn}>
+          <TouchableOpacity
+            style={[styles.btn, loading && styles.btnDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#000000" />
+            ) : (
               <Text style={styles.btnText}>{isLogin ? 'Sign In' : 'Create Account'}</Text>
-            </TouchableOpacity>
-          </Link>
+            )}
+          </TouchableOpacity>
 
           {isLogin && (
             <TouchableOpacity style={styles.forgotBtn}>
@@ -127,6 +166,7 @@ const styles = StyleSheet.create({
   verifyIcon: { fontSize: 14, color: '#FFC300', marginTop: 2 },
   verifyText: { fontSize: 13, color: '#FFFFFF', lineHeight: 20, flex: 1, opacity: 0.85 },
   btn: { backgroundColor: '#FFC300', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 4 },
+  btnDisabled: { opacity: 0.6 },
   btnText: { fontSize: 16, fontWeight: '700', color: '#000000' },
   forgotBtn: { alignItems: 'center', marginTop: 14 },
   forgotText: { fontSize: 13, color: '#888888' },
