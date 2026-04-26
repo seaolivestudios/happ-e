@@ -3,7 +3,8 @@ import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { clearSession } from '../auth';
+import { api } from '../api';
+import { clearSession, getToken } from '../auth';
 
 const screen = Dimensions.get('window');
 const cardWidth = screen.width - 24;
@@ -43,6 +44,33 @@ const initialPosts = [
 export default function HomeScreen() {
   const [dimensions, setDimensions] = useState({ width: screen.width, height: screen.height });
   const [posts, setPosts] = useState(initialPosts);
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const token = await getToken();
+        const result = await api.getPosts(token || '');
+        if (result.success && result.posts.length > 0) {
+          const formatted = result.posts.map((p: any) => ({
+            id: String(p.id),
+            user: p.handle,
+            name: p.name,
+            text: p.text,
+            type: p.type,
+            image: p.image_url,
+            video: p.video_url,
+            widescreen: p.widescreen,
+            smiles: parseInt(p.smile_count) || 0,
+            comments: [],
+            author: p.author_quote,
+          }));
+          setPosts(formatted);
+        }
+      } catch (err) {
+        console.log('Using local posts as fallback');
+      }
+    };
+    loadPosts();
+  }, []);
   const [commentVisible, setCommentVisible] = useState(false);
   const [commentPost, setCommentPost] = useState<any>(null);
   const [newComment, setNewComment] = useState('');
