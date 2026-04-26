@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from './api';
+import { saveSession } from './auth';
 
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,6 +27,7 @@ export default function LoginScreen() {
         : await api.register(name, email, password);
 
       if (result.success && result.token) {
+        await saveSession(result.token, result.user);
         if (isLogin) {
           router.replace('/(tabs)' as any);
         } else {
