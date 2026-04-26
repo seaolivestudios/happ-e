@@ -1,7 +1,6 @@
 const API_URL = 'https://happe-backend-production.up.railway.app';
 
 export const api = {
-  // Auth
   login: async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -20,10 +19,21 @@ export const api = {
     return response.json();
   },
 
-  // Posts
   getPosts: async (token: string) => {
     const response = await fetch(`${API_URL}/posts`, {
       headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  createPost: async (post: any, token: string) => {
+    const response = await fetch(`${API_URL}/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(post),
     });
     return response.json();
   },
@@ -39,7 +49,7 @@ export const api = {
   commentPost: async (postId: string, text: string, user: string, token: string) => {
     const response = await fetch(`${API_URL}/posts/${postId}/comment`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
