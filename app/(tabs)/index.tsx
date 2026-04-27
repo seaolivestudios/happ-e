@@ -354,8 +354,7 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={closeMenu} />
       )}
 
-      {menuOpen && (
-<Animated.View style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}>
+      <Animated.View style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}>
         <View style={styles.menuHeader}>
           <Image source={require('../../assets/images/Logo v_1.png')} style={styles.menuLogo} resizeMode="contain" />
           <TouchableOpacity onPress={closeMenu}>
@@ -388,7 +387,7 @@ export default function HomeScreen() {
         <View style={styles.menuFooter}>
           <Text style={styles.menuFooterText}>No ads · No bots · No noise</Text>
         </View>
-      </Animated.View>)}
+      </Animated.View>
 
       {commentVisible && (
         <>

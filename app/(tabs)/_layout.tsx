@@ -2,7 +2,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
 
 export default function TabLayout() {
   const dim = Dimensions.get('window');
@@ -15,16 +15,6 @@ export default function TabLayout() {
     return () => sub.remove();
   }, []);
 
-  const tabBarStyle = isLandscape
-    ? { display: 'none' as const, height: 0, position: 'absolute' as const }
-    : {
-        backgroundColor: '#000000',
-        borderTopWidth: 2,
-        borderTopColor: '#FFC300',
-        height: 60,
-        paddingBottom: 8,
-      };
-
   return (
     <Tabs
       screenOptions={{
@@ -32,7 +22,19 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#888888',
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle,
+        tabBarStyle: isLandscape
+          ? { display: 'none', height: 0, position: 'absolute' }
+          : {
+              backgroundColor: '#000000',
+              borderTopWidth: 2,
+              borderTopColor: '#FFC300',
+              height: 60,
+              paddingBottom: 8,
+              ...Platform.select({
+                ios: { backgroundColor: '#000000' },
+                android: { backgroundColor: '#000000' },
+              }),
+            },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
