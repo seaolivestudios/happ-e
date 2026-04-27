@@ -47,4 +47,15 @@ export const api = {
     });
     return response.json();
   },
+
+  createPost: async (formData: FormData, token: string) => {
+    const response = await fetch(`${API_URL}/posts`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    return response.json();
+  },
 };

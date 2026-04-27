@@ -1,145 +1,382 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+// app/(tabs)/search.tsx
+import { useMemo, useState } from 'react';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
-const screen = Dimensions.get('window');
-const cardWidth = screen.width - 24;
-const imageHeight = cardWidth * (5 / 4);
+type User = {
+  id: string;
+  name: string;
+  handle: string;
+  category: string;
+  verified: boolean;
+};
 
-const categories = [
-  { id: 'woodworking', label: 'Woodworking' },
-  { id: 'photography', label: 'Photography' },
-  { id: 'painting', label: 'Painting' },
-  { id: 'outdoors', label: 'Outdoors' },
-  { id: 'fishing', label: 'Fishing' },
-  { id: 'music', label: 'Music' },
-  { id: 'cooking', label: 'Cooking' },
-  { id: 'pottery', label: 'Pottery' },
+type TrendingCategory = {
+  id: string;
+  label: string;
+  emoji: string;
+  posts: string;
+};
+
+type GridPost = {
+  id: string;
+  user: string;
+  image: string;
+  widescreen: boolean;
+};
+
+type WidescreenPost = {
+  id: string;
+  user: string;
+  image: string;
+  label: string;
+};
+
+type Section =
+  | { type: 'grid'; posts: GridPost[] }
+  | { type: 'widescreen'; post: WidescreenPost };
+
+type TabKey = 'discover' | 'people' | 'categories';
+
+const ALL_USERS: User[] = [
+  { id: 'u1', name: 'Maria Santos', handle: '@maria', category: 'Photography', verified: true },
+  { id: 'u2', name: 'Jake Miller', handle: '@jake', category: 'Woodworking', verified: true },
+  { id: 'u3', name: 'Sarah Creates', handle: '@sarah_creates', category: 'Painting', verified: true },
+  { id: 'u4', name: 'Outdoor Life', handle: '@outdoorlife', category: 'Outdoors', verified: true },
+  { id: 'u5', name: 'Craftsman Joe', handle: '@craftsman_joe', category: 'Woodworking', verified: true },
+  { id: 'u6', name: 'Nature Lens', handle: '@nature_lens', category: 'Photography', verified: true },
+  { id: 'u7', name: 'Fishing Life', handle: '@fishinglife', category: 'Fishing', verified: true },
+  { id: 'u8', name: 'Wood Craft', handle: '@woodcraft', category: 'Woodworking', verified: true },
 ];
 
-const sampleUsers = [
-  { id: '1', name: 'Jake Miller', handle: '@jake_builds', category: 'Woodworking', verified: true },
-  { id: '2', name: 'Maria Santos', handle: '@maria_lens', category: 'Photography', verified: true },
-  { id: '3', name: 'Tom Harris', handle: '@outdoorlife', category: 'Outdoors', verified: false },
-  { id: '4', name: 'Grace Liu', handle: '@potter_grace', category: 'Pottery', verified: true },
-  { id: '5', name: 'Dale Reeves', handle: '@fishing_life', category: 'Fishing', verified: false },
-  { id: '6', name: 'Mike Davis', handle: '@guitar_real', category: 'Music', verified: true },
+const TRENDING_CATEGORIES: TrendingCategory[] = [
+  { id: 'c1', label: 'Woodworking', emoji: '🪵', posts: '2.4k' },
+  { id: 'c2', label: 'Photography', emoji: '📷', posts: '5.1k' },
+  { id: 'c3', label: 'Fishing', emoji: '🎣', posts: '1.8k' },
+  { id: 'c4', label: 'Painting', emoji: '🎨', posts: '3.2k' },
+  { id: 'c5', label: 'Outdoors', emoji: '🏕️', posts: '4.7k' },
+  { id: 'c6', label: 'Music', emoji: '🎸', posts: '2.9k' },
 ];
 
-const samplePosts = [
-  { id: '1', image: 'https://picsum.photos/seed/wood1/600/750', user: '@jake', widescreen: true },
-  { id: '2', image: 'https://picsum.photos/seed/sunset1/600/750', user: '@maria', widescreen: true },
-  { id: '3', image: 'https://picsum.photos/seed/lake1/600/750', user: '@outdoors', widescreen: false },
-  { id: '4', image: 'https://picsum.photos/seed/clay1/600/750', user: '@grace', widescreen: false },
-  { id: '5', image: 'https://picsum.photos/seed/fish1/600/750', user: '@dale', widescreen: true },
-  { id: '6', image: 'https://picsum.photos/seed/flower1/600/750', user: '@anne', widescreen: false },
-  { id: '7', image: 'https://picsum.photos/seed/chair1/600/750', user: '@ray', widescreen: true },
-  { id: '8', image: 'https://picsum.photos/seed/ocean1/600/750', user: '@chris', widescreen: true },
-  { id: '9', image: 'https://picsum.photos/seed/bread1/600/750', user: '@lily', widescreen: false },
+const GRID_POSTS: GridPost[] = [
+  { id: 'p1', user: '@jake', image: 'https://picsum.photos/seed/g1/300/375', widescreen: true },
+  { id: 'p2', user: '@maria', image: 'https://picsum.photos/seed/g2/300/375', widescreen: false },
+  { id: 'p3', user: '@sarah', image: 'https://picsum.photos/seed/g3/300/375', widescreen: true },
+  { id: 'p4', user: '@outdoors', image: 'https://picsum.photos/seed/g4/300/375', widescreen: false },
+  { id: 'p5', user: '@craftsman', image: 'https://picsum.photos/seed/g5/300/375', widescreen: true },
+  { id: 'p6', user: '@nature', image: 'https://picsum.photos/seed/g6/300/375', widescreen: false },
+  { id: 'p7', user: '@fishing', image: 'https://picsum.photos/seed/g7/300/375', widescreen: true },
+  { id: 'p8', user: '@woodcraft', image: 'https://picsum.photos/seed/g8/300/375', widescreen: false },
+  { id: 'p9', user: '@painter', image: 'https://picsum.photos/seed/g9/300/375', widescreen: true },
+  { id: 'p10', user: '@hiker', image: 'https://picsum.photos/seed/g10/300/375', widescreen: false },
+  { id: 'p11', user: '@guitarist', image: 'https://picsum.photos/seed/g11/300/375', widescreen: true },
+  { id: 'p12', user: '@potter', image: 'https://picsum.photos/seed/g12/300/375', widescreen: false },
+  { id: 'p13', user: '@baker', image: 'https://picsum.photos/seed/g13/300/375', widescreen: true },
+  { id: 'p14', user: '@runner', image: 'https://picsum.photos/seed/g14/300/375', widescreen: false },
+  { id: 'p15', user: '@cyclist', image: 'https://picsum.photos/seed/g15/300/375', widescreen: true },
+  { id: 'p16', user: '@knitter', image: 'https://picsum.photos/seed/g16/300/375', widescreen: false },
+  { id: 'p17', user: '@surfer', image: 'https://picsum.photos/seed/g17/300/375', widescreen: true },
+  { id: 'p18', user: '@chef', image: 'https://picsum.photos/seed/g18/300/375', widescreen: false },
+  { id: 'p19', user: '@climber', image: 'https://picsum.photos/seed/g19/300/375', widescreen: true },
+  { id: 'p20', user: '@sculptor', image: 'https://picsum.photos/seed/g20/300/375', widescreen: false },
+  { id: 'p21', user: '@brewer', image: 'https://picsum.photos/seed/g21/300/375', widescreen: true },
+  { id: 'p22', user: '@kayaker', image: 'https://picsum.photos/seed/g22/300/375', widescreen: false },
+  { id: 'p23', user: '@weaver', image: 'https://picsum.photos/seed/g23/300/375', widescreen: true },
+  { id: 'p24', user: '@birder', image: 'https://picsum.photos/seed/g24/300/375', widescreen: false },
+  { id: 'p25', user: '@jeweler', image: 'https://picsum.photos/seed/g25/300/375', widescreen: true },
+  { id: 'p26', user: '@forager', image: 'https://picsum.photos/seed/g26/300/375', widescreen: false },
+  { id: 'p27', user: '@drummer', image: 'https://picsum.photos/seed/g27/300/375', widescreen: true },
+  { id: 'p28', user: '@glassblower', image: 'https://picsum.photos/seed/g28/300/375', widescreen: false },
+  { id: 'p29', user: '@leathersmith', image: 'https://picsum.photos/seed/g29/300/375', widescreen: true },
+  { id: 'p30', user: '@candlemaker', image: 'https://picsum.photos/seed/g30/300/375', widescreen: false },
 ];
 
-const widescreenPosts = samplePosts.filter(p => p.widescreen);
-const gridPosts = samplePosts.filter(p => !p.widescreen);
+const WIDESCREEN_POSTS: WidescreenPost[] = [
+  { id: 'w1', user: '@jake', image: 'https://picsum.photos/seed/wide1/800/450', label: 'Widescreen' },
+  { id: 'w2', user: '@maria', image: 'https://picsum.photos/seed/wide2/800/450', label: 'Widescreen' },
+  { id: 'w3', user: '@outdoorlife', image: 'https://picsum.photos/seed/wide3/800/450', label: 'Widescreen' },
+  { id: 'w4', user: '@nature_lens', image: 'https://picsum.photos/seed/wide4/800/450', label: 'Widescreen' },
+  { id: 'w5', user: '@craftsman_joe', image: 'https://picsum.photos/seed/wide5/800/450', label: 'Widescreen' },
+];
+
+function buildSections(gridPosts: GridPost[], widescreenPosts: WidescreenPost[]): Section[] {
+  const sections: Section[] = [];
+  let postIndex = 0;
+  let widescreenIndex = 0;
+
+  while (postIndex < gridPosts.length) {
+    const chunk = gridPosts.slice(postIndex, postIndex + 6);
+    sections.push({ type: 'grid', posts: chunk });
+    postIndex += 6;
+
+    if (widescreenIndex < widescreenPosts.length) {
+      sections.push({
+        type: 'widescreen',
+        post: widescreenPosts[widescreenIndex],
+      });
+      widescreenIndex += 1;
+    }
+  }
+
+  return sections;
+}
+
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label} tab`}
+      onPress={onPress}
+      style={[styles.tab, active && styles.tabActive]}
+    >
+      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function UserRow({ user }: { user: User }) {
+  return (
+    <View style={styles.userRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${user.name}`}
+        style={styles.userMain}
+      >
+        <View style={styles.userAvatar}>
+          <Text style={styles.userAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+        </View>
+
+        <View style={styles.userInfo}>
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>{user.name}</Text>
+            {user.verified ? <Text style={styles.verifiedBadge}>✦</Text> : null}
+          </View>
+          <Text style={styles.userHandle}>
+            {user.handle} · {user.category}
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Follow ${user.name}`}
+        style={styles.followBtn}
+      >
+        <Text style={styles.followBtnText}>Follow</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function CategoryRow({ category }: { category: TrendingCategory }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Browse ${category.label}`}
+      style={styles.categoryRow}
+    >
+      <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+      <View style={styles.categoryInfo}>
+        <Text style={styles.categoryLabel}>{category.label}</Text>
+        <Text style={styles.categoryPosts}>{category.posts} posts</Text>
+      </View>
+      <Text style={styles.categoryArrow}>›</Text>
+    </Pressable>
+  );
+}
 
 export default function SearchScreen() {
+  const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'discover' | 'people' | 'categories'>('discover');
+  const [activeTab, setActiveTab] = useState<TabKey>('discover');
 
-  const filteredUsers = sampleUsers.filter(u =>
-    u.name.toLowerCase().includes(query.toLowerCase()) ||
-    u.handle.toLowerCase().includes(query.toLowerCase())
+  const normalizedQuery = query.trim().toLowerCase();
+  const isSearching = normalizedQuery.length > 0;
+
+  const horizontalPadding = 32;
+  const gridGap = 4;
+  const totalGapWidth = gridGap * 2;
+  const colWidth = (width - horizontalPadding - totalGapWidth) / 3;
+  const cardHeight = colWidth * (5 / 4);
+  const widescreenHeight = (width - 32) * (9 / 16);
+
+  const sections = useMemo(
+    () => buildSections(GRID_POSTS, WIDESCREEN_POSTS),
+    []
   );
+
+  const filteredUsers = useMemo(() => {
+    if (!normalizedQuery) return [];
+
+    return ALL_USERS.filter((user) => {
+      const name = user.name.toLowerCase();
+      const handle = user.handle.toLowerCase();
+      const category = user.category.toLowerCase();
+
+      return (
+        name.includes(normalizedQuery) ||
+        handle.includes(normalizedQuery) ||
+        category.includes(normalizedQuery)
+      );
+    });
+  }, [normalizedQuery]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Discover</Text>
-        <View style={styles.searchRow}>
-          <Ionicons name="search" size={18} color="#888888" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search people, categories..."
-            placeholderTextColor="#888888"
-            value={query}
-            onChangeText={setQuery}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#888888" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.tabRow}>
-          {(['discover', 'people', 'categories'] as const).map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
-      <ScrollView style={styles.body}>
-        {activeTab === 'people' && (
-          <View style={styles.peopleList}>
-            {(query ? filteredUsers : sampleUsers).map(user => (
-              <TouchableOpacity key={user.id} style={styles.userRow}>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userAvatarText}>{user.name.charAt(0)}</Text>
-                </View>
-                <View style={styles.userInfo}>
-                  <View style={styles.userNameRow}>
-                    <Text style={styles.userName}>{user.name}</Text>
-                    {user.verified && <Text style={styles.verifiedBadge}>✦</Text>}
-                  </View>
-                  <Text style={styles.userHandle}>{user.handle} · {user.category}</Text>
-                </View>
-                <TouchableOpacity style={styles.followBtn}>
-                  <Text style={styles.followBtnText}>Follow</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search people, crafts, interests..."
+          placeholderTextColor="#888888"
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {isSearching ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+            onPress={() => setQuery('')}
+            style={styles.clearBtn}
+          >
+            <Text style={styles.clearText}>✕</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
-        {activeTab === 'categories' && (
-          <View style={styles.categoriesGrid}>
-            {categories.map(cat => (
-              <TouchableOpacity key={cat.id} style={styles.categoryCard}>
-                <Text style={styles.categoryLabel}>{cat.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+      {!isSearching ? (
+        <View style={styles.tabRow}>
+          <TabButton
+            label="Discover"
+            active={activeTab === 'discover'}
+            onPress={() => setActiveTab('discover')}
+          />
+          <TabButton
+            label="People"
+            active={activeTab === 'people'}
+            onPress={() => setActiveTab('people')}
+          />
+          <TabButton
+            label="Categories"
+            active={activeTab === 'categories'}
+            onPress={() => setActiveTab('categories')}
+          />
+        </View>
+      ) : null}
 
-        {activeTab === 'discover' && (
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {isSearching ? (
+          <View style={styles.searchResults}>
+            <Text style={styles.sectionLabel}>Results for "{query.trim()}"</Text>
+
+            {filteredUsers.length === 0 ? (
+              <Text style={styles.noResults}>No results found.</Text>
+            ) : (
+              filteredUsers.map((user) => <UserRow key={user.id} user={user} />)
+            )}
+          </View>
+        ) : activeTab === 'discover' ? (
           <View>
-            <Text style={styles.sectionLabel}>Widescreen Posts</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.widescreenScroll}>
-              {widescreenPosts.map(post => (
-                <TouchableOpacity key={post.id} style={styles.widescreenCard}>
-                  <Image source={{ uri: post.image }} style={styles.widescreenImage} resizeMode="cover" />
-                  <View style={styles.widescreenOverlay}>
-                    <Text style={styles.widescreenLabel}>⟷ Widescreen</Text>
-                    <Text style={styles.widescreenUser}>{post.user}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {sections.map((section, sectionIndex) => {
+              if (section.type === 'grid') {
+                const rows = [
+                  section.posts.slice(0, 3),
+                  section.posts.slice(3, 6),
+                ];
 
-            <Text style={styles.sectionLabel}>Recent Posts</Text>
-            <View style={styles.gridContainer}>
-              {gridPosts.map(post => (
-                <TouchableOpacity key={post.id} style={styles.gridCell}>
-                  <Image source={{ uri: post.image }} style={styles.gridImage} resizeMode="cover" />
-                </TouchableOpacity>
-              ))}
+                return (
+                  <View key={`grid-${sectionIndex}`}>
+                    {rows.map((row, rowIndex) => (
+                      <View key={`row-${sectionIndex}-${rowIndex}`} style={styles.gridRow}>
+                        {row.map((post) => (
+                          <Pressable
+                            key={post.id}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Open post from ${post.user}`}
+                            style={[styles.gridCell, { width: colWidth, height: cardHeight }]}
+                          >
+                            <Image
+                              source={{ uri: post.image }}
+                              style={styles.gridImage}
+                              resizeMode="cover"
+                            />
+                            {post.widescreen ? (
+                              <View style={styles.widescreenBadge}>
+                                <Text style={styles.widescreenBadgeText}>⇔</Text>
+                              </View>
+                            ) : null}
+                          </Pressable>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                );
+              }
+
+              return (
+                <Pressable
+                  key={`wide-${section.post.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open widescreen post from ${section.post.user}`}
+                  style={[styles.widescreenCard, { height: widescreenHeight }]}
+                >
+                  <Image
+                    source={{ uri: section.post.image }}
+                    style={styles.widescreenImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.widescreenOverlay}>
+                    <Text style={styles.widescreenLabel}>⇔ {section.post.label}</Text>
+                    <Text style={styles.widescreenUser}>{section.post.user}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.endMessage}>
+              <Text style={styles.endText}>✦ You've seen it all — check back soon</Text>
             </View>
+          </View>
+        ) : activeTab === 'people' ? (
+          <View style={styles.searchResults}>
+            <Text style={styles.sectionLabel}>Suggested People</Text>
+            {ALL_USERS.map((user) => (
+              <UserRow key={user.id} user={user} />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.searchResults}>
+            <Text style={styles.sectionLabel}>Browse Categories</Text>
+            {TRENDING_CATEGORIES.map((category) => (
+              <CategoryRow key={category.id} category={category} />
+            ))}
           </View>
         )}
       </ScrollView>
@@ -148,41 +385,248 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F7F7' },
-  header: { backgroundColor: '#000000', paddingTop: 60, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
-  title: { fontSize: 26, fontWeight: '700', color: '#FFC300', paddingHorizontal: 20, marginBottom: 12 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111111', borderRadius: 12, marginHorizontal: 16, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12, borderWidth: 1, borderColor: '#333333' },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: '#FFFFFF' },
-  tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8 },
-  tab: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: '#111111', borderWidth: 1, borderColor: '#333333' },
-  tabActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
-  tabText: { fontSize: 13, color: '#888888', fontWeight: '600' },
-  tabTextActive: { color: '#000000' },
-  body: { flex: 1 },
-  peopleList: { padding: 16, gap: 12 },
-  userRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12, gap: 12, borderWidth: 1, borderColor: '#E0E0E0' },
-  userAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
-  userAvatarText: { fontSize: 18, fontWeight: '700', color: '#000000' },
-  userInfo: { flex: 1 },
-  userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  userName: { fontSize: 14, fontWeight: '700', color: '#000000' },
-  verifiedBadge: { fontSize: 12, color: '#FFC300' },
-  userHandle: { fontSize: 12, color: '#888888', marginTop: 2 },
-  followBtn: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
-  followBtnText: { fontSize: 12, fontWeight: '700', color: '#000000' },
-  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 10 },
-  categoryCard: { width: (screen.width - 48) / 2, backgroundColor: '#000000', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#FFC300', alignItems: 'center' },
-  categoryLabel: { fontSize: 15, fontWeight: '700', color: '#FFC300' },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#000000', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10 },
-  widescreenScroll: { paddingLeft: 16, marginBottom: 8 },
-  widescreenCard: { width: 200, height: 120, borderRadius: 12, overflow: 'hidden', marginRight: 10 },
-  widescreenImage: { width: '100%', height: '100%' },
-  widescreenOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', padding: 8 },
-  widescreenLabel: { fontSize: 10, color: '#FFC300', fontWeight: '700' },
-  widescreenUser: { fontSize: 11, color: '#FFFFFF' },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, paddingBottom: 20 },
-  gridCell: { width: (screen.width - 48) / 3, height: (screen.width - 48) / 3, borderRadius: 8, overflow: 'hidden' },
-  gridImage: { width: '100%', height: '100%' },
-  noResults: { textAlign: 'center', color: '#888888', marginTop: 40, fontSize: 14 },
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#FFC300',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFC300',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    backgroundColor: '#111111',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#333333',
+    paddingHorizontal: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#FFFFFF',
+    paddingVertical: 12,
+  },
+  clearBtn: {
+    padding: 4,
+  },
+  clearText: {
+    fontSize: 14,
+    color: '#888888',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  tabActive: {
+    backgroundColor: '#FFC300',
+    borderColor: '#FFC300',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#888888',
+  },
+  tabTextActive: {
+    color: '#000000',
+  },
+  body: {
+    flex: 1,
+  },
+  bodyContent: {
+    paddingBottom: 20,
+  },
+  searchResults: {
+    padding: 16,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFC300',
+    letterSpacing: 1,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  noResults: {
+    fontSize: 14,
+    color: '#888888',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  gridCell: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#111111',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  widescreenBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  widescreenBadgeText: {
+    fontSize: 10,
+    color: '#FFC300',
+  },
+  widescreenCard: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#111111',
+  },
+  widescreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  widescreenOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  widescreenLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFC300',
+    letterSpacing: 1,
+  },
+  widescreenUser: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#1A1A1A',
+    gap: 12,
+  },
+  userMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFC300',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  userAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  verifiedBadge: {
+    fontSize: 12,
+    color: '#FFC300',
+  },
+  userHandle: {
+    fontSize: 12,
+    color: '#888888',
+    marginTop: 2,
+  },
+  followBtn: {
+    backgroundColor: '#FFC300',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  followBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#1A1A1A',
+    gap: 14,
+  },
+  categoryEmoji: {
+    fontSize: 28,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  categoryPosts: {
+    fontSize: 12,
+    color: '#888888',
+    marginTop: 2,
+  },
+  categoryArrow: {
+    fontSize: 20,
+    color: '#FFC300',
+  },
+  endMessage: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  endText: {
+    fontSize: 13,
+    color: '#444444',
+  },
 });
