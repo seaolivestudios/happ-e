@@ -131,6 +131,7 @@ export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string } | null>(null);
 
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
@@ -153,6 +154,14 @@ export default function HomeScreen() {
       commentAnim.setValue(commentDrawerHiddenX);
     }
   }, [commentVisible, commentAnim, commentDrawerHiddenX]);
+
+useEffect(() => {
+    async function loadUser() {
+      const user = await getUser();
+      if (user) setCurrentUser(user);
+    }
+    void loadUser();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -748,11 +757,13 @@ export default function HomeScreen() {
 
         <View style={styles.menuUserRow}>
           <View style={styles.menuAvatar}>
-            <Text style={styles.menuAvatarText}>S</Text>
+            <Text style={styles.menuAvatarText}>
+              {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
+            </Text>
           </View>
           <View>
-            <Text style={styles.menuName}>Stephen</Text>
-            <Text style={styles.menuHandle}>@stephen</Text>
+            <Text style={styles.menuName}>{currentUser?.name ?? 'User'}</Text>
+            <Text style={styles.menuHandle}>{currentUser?.handle ? `@${currentUser.handle}` : currentUser?.email ?? ''}</Text>
           </View>
         </View>
 

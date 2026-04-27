@@ -1,9 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from '../api';
-import { getToken } from '../auth';
+import { getToken, getUser } from '../auth';
 
 const categories = ['Woodworking', 'Photography', 'Painting', 'Outdoors', 'Fishing', 'Baseball', 'Music', 'Other'];
 
@@ -13,6 +13,15 @@ export default function CreateScreen() {
   const [mediaUri, setMediaUri] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string } | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const user = await getUser();
+      if (user) setCurrentUser(user);
+    }
+    void loadUser();
+  }, []);
 
   const pickFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -81,7 +90,6 @@ export default function CreateScreen() {
 
     try {
       const token = await getToken();
-
       const formData = new FormData();
       formData.append('text', caption.trim());
       formData.append('category', selectedCategory);
@@ -149,7 +157,9 @@ export default function CreateScreen() {
 
         <View style={styles.captionRow}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>S</Text>
+            <Text style={styles.avatarText}>
+              {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
+            </Text>
           </View>
           <TextInput
             style={styles.captionInput}
