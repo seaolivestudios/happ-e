@@ -1,5 +1,4 @@
-// app/(tabs)/search.tsx
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -17,6 +16,7 @@ type User = {
   handle: string;
   category: string;
   verified: boolean;
+  following?: boolean;
 };
 
 type TrendingCategory = {
@@ -118,10 +118,7 @@ function buildSections(gridPosts: GridPost[], widescreenPosts: WidescreenPost[])
     postIndex += 6;
 
     if (widescreenIndex < widescreenPosts.length) {
-      sections.push({
-        type: 'widescreen',
-        post: widescreenPosts[widescreenIndex],
-      });
+      sections.push({ type: 'widescreen', post: widescreenPosts[widescreenIndex] });
       widescreenIndex += 1;
     }
   }
@@ -129,15 +126,7 @@ function buildSections(gridPosts: GridPost[], widescreenPosts: WidescreenPost[])
   return sections;
 }
 
-function TabButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -150,7 +139,7 @@ function TabButton({
   );
 }
 
-function UserRow({ user }: { user: User }) {
+function UserRow({ user, onFollow }: { user: User; onFollow: (id: string) => void }) {
   return (
     <View style={styles.userRow}>
       <Pressable
@@ -161,24 +150,24 @@ function UserRow({ user }: { user: User }) {
         <View style={styles.userAvatar}>
           <Text style={styles.userAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
         </View>
-
         <View style={styles.userInfo}>
           <View style={styles.userNameRow}>
             <Text style={styles.userName}>{user.name}</Text>
             {user.verified ? <Text style={styles.verifiedBadge}>✦</Text> : null}
           </View>
-          <Text style={styles.userHandle}>
-            {user.handle} · {user.category}
-          </Text>
+          <Text style={styles.userHandle}>{user.handle} · {user.category}</Text>
         </View>
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Follow ${user.name}`}
-        style={styles.followBtn}
+        accessibilityLabel={user.following ? `Unfollow ${user.name}` : `Follow ${user.name}`}
+        style={[styles.followBtn, user.following && styles.followingBtn]}
+        onPress={() => onFollow(user.id)}
       >
-        <Text style={styles.followBtnText}>Follow</Text>
+        <Text style={[styles.followBtnText, user.following && styles.followingBtnText]}>
+          {user.following ? 'Following' : 'Follow'}
+        </Text>
       </Pressable>
     </View>
   );
@@ -205,6 +194,15 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
+  const [users, setUsers] = useState<User[]>(ALL_USERS);
+
+  const handleFollow = useCallback((id: string) => {
+    setUsers(prev =>
+      prev.map(user =>
+        user.id === id ? { ...user, following: !user.following } : user
+      )
+    );
+  }, []);
 
   const normalizedQuery = query.trim().toLowerCase();
   const isSearching = normalizedQuery.length > 0;
@@ -216,26 +214,17 @@ export default function SearchScreen() {
   const cardHeight = colWidth * (5 / 4);
   const widescreenHeight = (width - 32) * (9 / 16);
 
-  const sections = useMemo(
-    () => buildSections(GRID_POSTS, WIDESCREEN_POSTS),
-    []
-  );
+  const sections = useMemo(() => buildSections(GRID_POSTS, WIDESCREEN_POSTS), []);
 
   const filteredUsers = useMemo(() => {
     if (!normalizedQuery) return [];
-
-    return ALL_USERS.filter((user) => {
+    return users.filter((user) => {
       const name = user.name.toLowerCase();
       const handle = user.handle.toLowerCase();
       const category = user.category.toLowerCase();
-
-      return (
-        name.includes(normalizedQuery) ||
-        handle.includes(normalizedQuery) ||
-        category.includes(normalizedQuery)
-      );
+      return name.includes(normalizedQuery) || handle.includes(normalizedQuery) || category.includes(normalizedQuery);
     });
-  }, [normalizedQuery]);
+  }, [normalizedQuery, users]);
 
   return (
     <View style={styles.container}>
@@ -268,21 +257,9 @@ export default function SearchScreen() {
 
       {!isSearching ? (
         <View style={styles.tabRow}>
-          <TabButton
-            label="Discover"
-            active={activeTab === 'discover'}
-            onPress={() => setActiveTab('discover')}
-          />
-          <TabButton
-            label="People"
-            active={activeTab === 'people'}
-            onPress={() => setActiveTab('people')}
-          />
-          <TabButton
-            label="Categories"
-            active={activeTab === 'categories'}
-            onPress={() => setActiveTab('categories')}
-          />
+          <TabButton label="Discover" active={activeTab === 'discover'} onPress={() => setActiveTab('discover')} />
+          <TabButton label="People" active={activeTab === 'people'} onPress={() => setActiveTab('people')} />
+          <TabButton label="Categories" active={activeTab === 'categories'} onPress={() => setActiveTab('categories')} />
         </View>
       ) : null}
 
@@ -295,22 +272,17 @@ export default function SearchScreen() {
         {isSearching ? (
           <View style={styles.searchResults}>
             <Text style={styles.sectionLabel}>Results for "{query.trim()}"</Text>
-
             {filteredUsers.length === 0 ? (
               <Text style={styles.noResults}>No results found.</Text>
             ) : (
-              filteredUsers.map((user) => <UserRow key={user.id} user={user} />)
+              filteredUsers.map((user) => <UserRow key={user.id} user={user} onFollow={handleFollow} />)
             )}
           </View>
         ) : activeTab === 'discover' ? (
           <View>
             {sections.map((section, sectionIndex) => {
               if (section.type === 'grid') {
-                const rows = [
-                  section.posts.slice(0, 3),
-                  section.posts.slice(3, 6),
-                ];
-
+                const rows = [section.posts.slice(0, 3), section.posts.slice(3, 6)];
                 return (
                   <View key={`grid-${sectionIndex}`}>
                     {rows.map((row, rowIndex) => (
@@ -322,11 +294,7 @@ export default function SearchScreen() {
                             accessibilityLabel={`Open post from ${post.user}`}
                             style={[styles.gridCell, { width: colWidth, height: cardHeight }]}
                           >
-                            <Image
-                              source={{ uri: post.image }}
-                              style={styles.gridImage}
-                              resizeMode="cover"
-                            />
+                            <Image source={{ uri: post.image }} style={styles.gridImage} resizeMode="cover" />
                             {post.widescreen ? (
                               <View style={styles.widescreenBadge}>
                                 <Text style={styles.widescreenBadgeText}>⇔</Text>
@@ -347,11 +315,7 @@ export default function SearchScreen() {
                   accessibilityLabel={`Open widescreen post from ${section.post.user}`}
                   style={[styles.widescreenCard, { height: widescreenHeight }]}
                 >
-                  <Image
-                    source={{ uri: section.post.image }}
-                    style={styles.widescreenImage}
-                    resizeMode="cover"
-                  />
+                  <Image source={{ uri: section.post.image }} style={styles.widescreenImage} resizeMode="cover" />
                   <View style={styles.widescreenOverlay}>
                     <Text style={styles.widescreenLabel}>⇔ {section.post.label}</Text>
                     <Text style={styles.widescreenUser}>{section.post.user}</Text>
@@ -359,7 +323,6 @@ export default function SearchScreen() {
                 </Pressable>
               );
             })}
-
             <View style={styles.endMessage}>
               <Text style={styles.endText}>✦ You've seen it all — check back soon</Text>
             </View>
@@ -367,8 +330,8 @@ export default function SearchScreen() {
         ) : activeTab === 'people' ? (
           <View style={styles.searchResults}>
             <Text style={styles.sectionLabel}>Suggested People</Text>
-            {ALL_USERS.map((user) => (
-              <UserRow key={user.id} user={user} />
+            {users.map((user) => (
+              <UserRow key={user.id} user={user} onFollow={handleFollow} />
             ))}
           </View>
         ) : (
@@ -385,248 +348,52 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#FFC300',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFC300',
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    backgroundColor: '#111111',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#333333',
-    paddingHorizontal: 14,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#FFFFFF',
-    paddingVertical: 12,
-  },
-  clearBtn: {
-    padding: 4,
-  },
-  clearText: {
-    fontSize: 14,
-    color: '#888888',
-  },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 8,
-  },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  tabActive: {
-    backgroundColor: '#FFC300',
-    borderColor: '#FFC300',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888888',
-  },
-  tabTextActive: {
-    color: '#000000',
-  },
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    paddingBottom: 20,
-  },
-  searchResults: {
-    padding: 16,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFC300',
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  noResults: {
-    fontSize: 14,
-    color: '#888888',
-    textAlign: 'center',
-    marginTop: 40,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 4,
-    paddingHorizontal: 16,
-  },
-  gridCell: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#111111',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  widescreenBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  widescreenBadgeText: {
-    fontSize: 10,
-    color: '#FFC300',
-  },
-  widescreenCard: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#111111',
-  },
-  widescreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-  widescreenOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  widescreenLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFC300',
-    letterSpacing: 1,
-  },
-  widescreenUser: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#1A1A1A',
-    gap: 12,
-  },
-  userMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFC300',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  userAvatarText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  verifiedBadge: {
-    fontSize: 12,
-    color: '#FFC300',
-  },
-  userHandle: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 2,
-  },
-  followBtn: {
-    backgroundColor: '#FFC300',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  followBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#1A1A1A',
-    gap: 14,
-  },
-  categoryEmoji: {
-    fontSize: 28,
-  },
-  categoryInfo: {
-    flex: 1,
-  },
-  categoryLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  categoryPosts: {
-    fontSize: 12,
-    color: '#888888',
-    marginTop: 2,
-  },
-  categoryArrow: {
-    fontSize: 20,
-    color: '#FFC300',
-  },
-  endMessage: {
-    padding: 30,
-    alignItems: 'center',
-  },
-  endText: {
-    fontSize: 13,
-    color: '#444444',
-  },
+  container: { flex: 1, backgroundColor: '#000000' },
+  header: { paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
+  title: { fontSize: 24, fontWeight: '700', color: '#FFC300' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', margin: 16, backgroundColor: '#111111', borderRadius: 14, borderWidth: 1, borderColor: '#333333', paddingHorizontal: 14 },
+  searchInput: { flex: 1, fontSize: 15, color: '#FFFFFF', paddingVertical: 12 },
+  clearBtn: { padding: 4 },
+  clearText: { fontSize: 14, color: '#888888' },
+  tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 },
+  tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#333333' },
+  tabActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
+  tabText: { fontSize: 13, fontWeight: '600', color: '#888888' },
+  tabTextActive: { color: '#000000' },
+  body: { flex: 1 },
+  bodyContent: { paddingBottom: 20 },
+  searchResults: { padding: 16 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#FFC300', letterSpacing: 1, marginBottom: 12, marginTop: 8 },
+  noResults: { fontSize: 14, color: '#888888', textAlign: 'center', marginTop: 40 },
+  gridRow: { flexDirection: 'row', gap: 4, marginBottom: 4, paddingHorizontal: 16 },
+  gridCell: { borderRadius: 8, overflow: 'hidden', position: 'relative', backgroundColor: '#111111' },
+  gridImage: { width: '100%', height: '100%' },
+  widescreenBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
+  widescreenBadgeText: { fontSize: 10, color: '#FFC300' },
+  widescreenCard: { marginHorizontal: 16, marginVertical: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: '#111111' },
+  widescreenImage: { width: '100%', height: '100%' },
+  widescreenOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, backgroundColor: 'rgba(0,0,0,0.55)' },
+  widescreenLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 1 },
+  widescreenUser: { fontSize: 13, color: '#FFFFFF', fontWeight: '600', marginTop: 2 },
+  userRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A', gap: 12 },
+  userMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  userAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  userAvatarText: { fontSize: 18, fontWeight: '700', color: '#000000' },
+  userInfo: { flex: 1 },
+  userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  userName: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  verifiedBadge: { fontSize: 12, color: '#FFC300' },
+  userHandle: { fontSize: 12, color: '#888888', marginTop: 2 },
+  followBtn: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
+  followingBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FFC300' },
+  followBtnText: { fontSize: 12, fontWeight: '700', color: '#000000' },
+  followingBtnText: { color: '#FFC300' },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A', gap: 14 },
+  categoryEmoji: { fontSize: 28 },
+  categoryInfo: { flex: 1 },
+  categoryLabel: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  categoryPosts: { fontSize: 12, color: '#888888', marginTop: 2 },
+  categoryArrow: { fontSize: 20, color: '#FFC300' },
+  endMessage: { padding: 30, alignItems: 'center' },
+  endText: { fontSize: 13, color: '#444444' },
 });
