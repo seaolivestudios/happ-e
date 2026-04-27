@@ -4,7 +4,7 @@
     "slug": "happ-e",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/images/Logo v_1.png",
+    "icon": "./assets/images/App_Icon.png",
     "scheme": "happyapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,7 +20,7 @@
 },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Logo v_1.png",
+        "foregroundImage": "./assets/images/App_Icon.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -28,7 +28,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/Logo v_1.png"
+      "favicon": "./assets/images/App_Icon.png"
     },
     "plugins": [
       "expo-router",
