@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -12,20 +12,6 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#888888',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
-        tabBarButton: (props) => (
-          <Pressable
-            onPress={props.onPress as any}
-            onLongPress={props.onLongPress as any}
-            style={props.style as any}
-            accessible={props.accessible}
-            accessibilityLabel={props.accessibilityLabel}
-            accessibilityRole="button"
-            accessibilityState={props.accessibilityState}
-            testID={props.testID}
-          >
-            {props.children}
-          </Pressable>
-        ),
       }}
     >
       <Tabs.Screen
@@ -99,7 +85,6 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
     backgroundColor: '#000000',
     borderTopWidth: 2,
     borderTopColor: '#FFC300',

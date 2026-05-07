@@ -3,9 +3,6 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { enableScreens } from 'react-native-screens';
-
-enableScreens(false);
 
 const HappETheme = {
   dark: true,
@@ -31,7 +28,7 @@ export default function RootLayout() {
       <Stack initialRouteName="login">
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="light" />
