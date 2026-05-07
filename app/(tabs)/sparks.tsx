@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api';
+import { getToken } from '../auth';
 
 type SparkResponse = {
   id: string;
@@ -10,6 +12,7 @@ type SparkResponse = {
   image_url: string | null;
   text: string;
   smile_count: number;
+  comment_count: number;
 };
 
 type Spark = {
@@ -25,39 +28,50 @@ function hoursLeft(): string {
   return `${diff}h left`;
 }
 
-const SparkCard = ({ item, rank }: { item: SparkResponse; rank?: number }) => (
+type SparkCardProps = {
+  item: SparkResponse;
+  rank: number;
+  smiled: boolean;
+  onSmile: () => void;
+  onPress: () => void;
+};
+
+const SparkCard = ({ item, rank, smiled, onSmile, onPress }: SparkCardProps) => (
   <View style={styles.sparkCard}>
-    <View style={styles.sparkCardHeader}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{(item.name || item.handle).charAt(0).toUpperCase()}</Text>
-      </View>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.name || item.handle}</Text>
-        <Text style={styles.userHandle}>{item.handle}</Text>
-      </View>
-      {rank != null && (
+    <Pressable onPress={onPress}>
+      <View style={styles.sparkCardHeader}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{(item.name || item.handle || 'U').charAt(0).toUpperCase()}</Text>
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{item.name || item.handle}</Text>
+          <Text style={styles.userHandle}>{item.handle}</Text>
+        </View>
         <View style={styles.rankBadge}>
           <Text style={styles.rankText}>#{rank}</Text>
         </View>
-      )}
-    </View>
-    {item.image_url ? (
-      <Image source={{ uri: item.image_url }} style={styles.sparkImage} resizeMode="cover" />
-    ) : null}
-    <View style={styles.sparkCardFooter}>
-      <Text style={styles.sparkCaption}>{item.text}</Text>
-      <View style={styles.sparkActions}>
-        <TouchableOpacity style={styles.sparkActionBtn}>
-          <Ionicons name="happy-outline" size={20} color="#333333" />
-          <Text style={styles.sparkActionCount}>{item.smile_count}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sparkActionBtn}>
-          <Ionicons name="chatbubble-outline" size={20} color="#333333" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.sparkActionBtn}>
-          <Ionicons name="arrow-redo-outline" size={20} color="#333333" />
-        </TouchableOpacity>
       </View>
+      {item.image_url ? (
+        <Image source={{ uri: item.image_url }} style={styles.sparkImage} resizeMode="cover" />
+      ) : null}
+      <View style={styles.sparkCardBody}>
+        <Text style={styles.sparkCaption}>{item.text}</Text>
+      </View>
+    </Pressable>
+    <View style={styles.sparkActions}>
+      <Pressable style={styles.sparkActionBtn} onPress={onSmile} accessibilityRole="button" accessibilityLabel="Smile">
+        <Ionicons name={smiled ? 'happy' : 'happy-outline'} size={20} color={smiled ? '#FFC300' : '#888888'} />
+        <Text style={[styles.sparkActionCount, smiled && styles.sparkActionCountActive]}>
+          {item.smile_count}
+        </Text>
+      </Pressable>
+      <Pressable style={styles.sparkActionBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel="View comments">
+        <Ionicons name="chatbubble-outline" size={20} color="#888888" />
+        <Text style={styles.sparkActionCount}>{item.comment_count}</Text>
+      </Pressable>
+      <Pressable style={styles.sparkActionBtn} accessibilityRole="button" accessibilityLabel="Share">
+        <Ionicons name="arrow-redo-outline" size={20} color="#888888" />
+      </Pressable>
     </View>
   </View>
 );
@@ -66,6 +80,7 @@ export default function SparksScreen() {
   const [spark, setSpark] = useState<Spark | null>(null);
   const [responses, setResponses] = useState<SparkResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [smiledSparks, setSmiledSparks] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void loadSparks();
@@ -79,11 +94,14 @@ export default function SparksScreen() {
       ]);
       if (sparkResult.success) setSpark(sparkResult.spark);
       if (responsesResult.success) {
-        setResponses(responsesResult.responses.map((r: any) => ({
-          ...r,
-          id: String(r.id),
-          smile_count: parseInt(r.smile_count) || 0,
-        })));
+        setResponses(
+          responsesResult.responses.map((r: any) => ({
+            ...r,
+            id: String(r.id),
+            smile_count: parseInt(r.smile_count) || 0,
+            comment_count: parseInt(r.comment_count) || 0,
+          }))
+        );
       }
     } catch {
       // silently fail
@@ -91,6 +109,39 @@ export default function SparksScreen() {
       setLoading(false);
     }
   };
+
+  const handleSmile = useCallback(async (id: string) => {
+    const alreadySmiled = smiledSparks.has(id);
+    setSmiledSparks(prev => {
+      const next = new Set(prev);
+      alreadySmiled ? next.delete(id) : next.add(id);
+      return next;
+    });
+    setResponses(prev =>
+      prev.map(r =>
+        r.id === id
+          ? { ...r, smile_count: alreadySmiled ? Math.max(0, r.smile_count - 1) : r.smile_count + 1 }
+          : r
+      )
+    );
+    try {
+      const token = await getToken();
+      await api.smilePost(id, token ?? '');
+    } catch {
+      setSmiledSparks(prev => {
+        const next = new Set(prev);
+        alreadySmiled ? next.add(id) : next.delete(id);
+        return next;
+      });
+      setResponses(prev =>
+        prev.map(r =>
+          r.id === id
+            ? { ...r, smile_count: alreadySmiled ? r.smile_count + 1 : Math.max(0, r.smile_count - 1) }
+            : r
+        )
+      );
+    }
+  }, [smiledSparks]);
 
   return (
     <View style={styles.container}>
@@ -108,15 +159,20 @@ export default function SparksScreen() {
           {spark && (
             <View style={styles.todayBanner}>
               <View style={styles.todayBannerTop}>
-                <View>
+                <View style={{ flex: 1, marginRight: 12 }}>
                   <Text style={styles.todayLabel}>⚡ Today's Spark</Text>
                   <Text style={styles.todayTime}>{hoursLeft()} · {spark.responses} responses</Text>
                 </View>
-                <TouchableOpacity style={styles.respondBtn}>
+                <Pressable
+                  style={styles.respondBtn}
+                  onPress={() => router.push({ pathname: '/spark-respond', params: { prompt: spark.prompt } } as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Respond to today's spark"
+                >
                   <Text style={styles.respondBtnText}>Respond</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
-              <Text style={styles.todayPrompt}>{spark.prompt}</Text>
+              <Text style={styles.todayPrompt}>"{spark.prompt}"</Text>
             </View>
           )}
 
@@ -125,7 +181,14 @@ export default function SparksScreen() {
               <Text style={styles.sectionLabel}>🏆 Top Sparks Today</Text>
               <Text style={styles.sectionSub}>Voted by the community</Text>
               {responses.map((item, index) => (
-                <SparkCard key={item.id} item={item} rank={index + 1} />
+                <SparkCard
+                  key={item.id}
+                  item={item}
+                  rank={index + 1}
+                  smiled={smiledSparks.has(item.id)}
+                  onSmile={() => handleSmile(item.id)}
+                  onPress={() => router.push(`/post/${item.id}` as any)}
+                />
               ))}
             </>
           ) : (
@@ -155,7 +218,7 @@ const styles = StyleSheet.create({
   todayBannerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   todayLabel: { fontSize: 13, fontWeight: '700', color: '#FFC300', letterSpacing: 1 },
   todayTime: { fontSize: 11, color: '#888888', marginTop: 3 },
-  todayPrompt: { fontSize: 18, color: '#FFFFFF', lineHeight: 26, fontStyle: 'italic' },
+  todayPrompt: { fontSize: 17, color: '#FFFFFF', lineHeight: 26, fontStyle: 'italic' },
   respondBtn: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
   respondBtnText: { fontSize: 13, fontWeight: '700', color: '#000000' },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: '#000000', paddingHorizontal: 16, marginTop: 20, marginBottom: 4 },
@@ -170,11 +233,12 @@ const styles = StyleSheet.create({
   rankBadge: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   rankText: { fontSize: 12, fontWeight: '700', color: '#000000' },
   sparkImage: { width: '100%', height: 280 },
-  sparkCardFooter: { padding: 12 },
-  sparkCaption: { fontSize: 14, color: '#000000', lineHeight: 20, marginBottom: 10 },
-  sparkActions: { flexDirection: 'row', gap: 20, borderTopWidth: 0.5, borderTopColor: '#E0E0E0', paddingTop: 10 },
+  sparkCardBody: { padding: 12, paddingTop: 8 },
+  sparkCaption: { fontSize: 14, color: '#000000', lineHeight: 20 },
+  sparkActions: { flexDirection: 'row', gap: 20, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: '#E0E0E0' },
   sparkActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sparkActionCount: { fontSize: 13, color: '#888888' },
+  sparkActionCountActive: { color: '#FFC300' },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#000000' },
