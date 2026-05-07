@@ -736,8 +736,7 @@ useEffect(() => {
       ) : null}
 
       <Animated.View
-        pointerEvents={menuOpen ? 'auto' : 'none'}
-        style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}
+        style={[styles.menu, { transform: [{ translateX: menuAnim }], pointerEvents: menuOpen ? 'auto' : 'none' }]}
       >
         <View style={styles.menuHeader}>
           <Image
@@ -811,8 +810,7 @@ useEffect(() => {
       {commentVisible ? (
         <>
           <Animated.View
-            pointerEvents="auto"
-            style={[styles.commentOverlay, { opacity: commentOpacity }]}
+            style={[styles.commentOverlay, { opacity: commentOpacity, pointerEvents: 'auto' }]}
           >
             <Pressable
               accessibilityRole="button"
