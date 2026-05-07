@@ -20,7 +20,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { api } from '../api';
-import { clearSession, getToken } from '../auth';
+import { clearSession, getToken, getUser } from '../auth';
 
 type PostType = 'image' | 'video' | 'inspire';
 

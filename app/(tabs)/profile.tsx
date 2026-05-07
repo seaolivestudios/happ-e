@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { api } from '../api';
+import { getToken } from '../auth';
+
+const API = 'https://happe-backend-production.up.railway.app';
 
 const creativeCategories = [
   'Woodworking', 'Photography', 'Painting', 'Fishing', 'Outdoors',
@@ -8,21 +12,77 @@ const creativeCategories = [
   'Sculpting', 'Knitting', 'Hiking', 'Surfing', 'Drawing',
 ];
 
+type UserPost = {
+  id: string;
+  type: string;
+  text: string;
+  image_url: string | null;
+  video_url: string | null;
+  smile_count: number;
+};
+
 export default function ProfileScreen() {
+  const { width } = useWindowDimensions();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('Stephen');
-  const [handle, setHandle] = useState('@stephen');
-  const [bio, setBio] = useState('Passionate about craft, creativity, and real human connection. Welcome to Happ-E.');
-  const [category, setCategory] = useState('Woodworking');
-  const [location, setLocation] = useState('Florida, US');
+  const [myPosts, setMyPosts] = useState<UserPost[]>([]);
+
+  const [name, setName] = useState('');
+  const [handle, setHandle] = useState('');
+  const [bio, setBio] = useState('');
+  const [category, setCategory] = useState('');
+  const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
+  const [posts, setPosts] = useState(0);
+  const [followers, setFollowers] = useState(0);
+  const [following, setFollowing] = useState(0);
+
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+  const [editCategory, setEditCategory] = useState('');
   const [categoryModal, setCategoryModal] = useState(false);
 
-  const [editName, setEditName] = useState(name);
-  const [editBio, setEditBio] = useState(bio);
-  const [editLocation, setEditLocation] = useState(location);
-  const [editWebsite, setEditWebsite] = useState(website);
-  const [editCategory, setEditCategory] = useState(category);
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const token = await getToken();
+      const [profileRes, postsRes] = await Promise.all([
+        fetch(`${API}/profile/me`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        api.getMyPosts(token ?? ''),
+      ]);
+      const data = await profileRes.json();
+      if (data.user) {
+        setName(data.user.name || '');
+        setHandle(data.user.handle || '');
+        setBio(data.user.bio || '');
+        setCategory(data.user.category || '');
+        setLocation(data.user.location || '');
+        setWebsite(data.user.website || '');
+        setPosts(data.user.posts || 0);
+        setFollowers(data.user.followers || 0);
+        setFollowing(data.user.following || 0);
+      }
+      if (postsRes.success) {
+        setMyPosts(postsRes.posts.map((p: any) => ({ ...p, id: String(p.id), smile_count: parseInt(p.smile_count) || 0 })));
+      }
+    } catch (err) {
+      // Backend not reachable — fall back to defaults
+      setName('Stephen');
+      setHandle('@stephen');
+      setBio('Passionate about craft, creativity, and real human connection.');
+      setCategory('Woodworking');
+      setLocation('Florida, US');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startEdit = () => {
     setEditName(name);
@@ -33,19 +93,65 @@ export default function ProfileScreen() {
     setEditing(true);
   };
 
-  const saveEdit = () => {
-    setName(editName);
-    setBio(editBio);
-    setLocation(editLocation);
-    setWebsite(editWebsite);
-    setCategory(editCategory);
-    setEditing(false);
-    Alert.alert('Saved', 'Your profile has been updated.');
+  const saveEdit = async () => {
+    try {
+      setSaving(true);
+      const token = await getToken();
+      const res = await fetch(`${API}/profile/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editName,
+          bio: editBio,
+          location: editLocation,
+          website: editWebsite,
+          category: editCategory,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setName(editName);
+        setBio(editBio);
+        setLocation(editLocation);
+        setWebsite(editWebsite);
+        setCategory(editCategory);
+        setEditing(false);
+        Alert.alert('Saved', 'Your profile has been updated.');
+      } else {
+        // Save locally even if backend fails
+        setName(editName);
+        setBio(editBio);
+        setLocation(editLocation);
+        setWebsite(editWebsite);
+        setCategory(editCategory);
+        setEditing(false);
+      }
+    } catch (err) {
+      // Save locally even if backend is unreachable
+      setName(editName);
+      setBio(editBio);
+      setLocation(editLocation);
+      setWebsite(editWebsite);
+      setCategory(editCategory);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const cancelEdit = () => {
-    setEditing(false);
-  };
+  const cancelEdit = () => setEditing(false);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFC300" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -60,8 +166,8 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={cancelEdit}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={saveEdit} style={styles.saveBtn}>
-              <Text style={styles.saveBtnText}>Save</Text>
+            <TouchableOpacity onPress={saveEdit} style={styles.saveBtn} disabled={saving}>
+              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -81,9 +187,11 @@ export default function ProfileScreen() {
             <>
               <Text style={styles.name}>{name}</Text>
               <Text style={styles.handle}>{handle}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{category}</Text>
-              </View>
+              {category.length > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{category}</Text>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -92,47 +200,20 @@ export default function ProfileScreen() {
           <View style={styles.editForm}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Name</Text>
-              <TextInput
-                style={styles.input}
-                value={editName}
-                onChangeText={setEditName}
-                placeholderTextColor="#888888"
-                maxLength={50}
-              />
+              <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#888888" maxLength={50} />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Bio</Text>
-              <TextInput
-                style={[styles.input, styles.bioInput]}
-                value={editBio}
-                onChangeText={setEditBio}
-                placeholderTextColor="#888888"
-                multiline
-                maxLength={150}
-              />
+              <TextInput style={[styles.input, styles.bioInput]} value={editBio} onChangeText={setEditBio} placeholderTextColor="#888888" multiline maxLength={150} />
               <Text style={styles.charCount}>{150 - editBio.length} characters remaining</Text>
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Location</Text>
-              <TextInput
-                style={styles.input}
-                value={editLocation}
-                onChangeText={setEditLocation}
-                placeholderTextColor="#888888"
-                placeholder="City, State"
-              />
+              <TextInput style={styles.input} value={editLocation} onChangeText={setEditLocation} placeholderTextColor="#888888" placeholder="City, State" />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Website</Text>
-              <TextInput
-                style={styles.input}
-                value={editWebsite}
-                onChangeText={setEditWebsite}
-                placeholderTextColor="#888888"
-                placeholder="yourwebsite.com"
-                autoCapitalize="none"
-                keyboardType="url"
-              />
+              <TextInput style={styles.input} value={editWebsite} onChangeText={setEditWebsite} placeholderTextColor="#888888" placeholder="yourwebsite.com" autoCapitalize="none" keyboardType="url" />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Creative Category</Text>
@@ -146,23 +227,25 @@ export default function ProfileScreen() {
           <View style={styles.profileInfo}>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
-                <Text style={styles.statNum}>0</Text>
+                <Text style={styles.statNum}>{posts}</Text>
                 <Text style={styles.statLabel}>Posts</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={styles.statNum}>0</Text>
+                <Text style={styles.statNum}>{following}</Text>
                 <Text style={styles.statLabel}>Following</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={styles.statNum}>0</Text>
+                <Text style={styles.statNum}>{followers}</Text>
                 <Text style={styles.statLabel}>Followers</Text>
               </View>
             </View>
 
-            <View style={styles.infoCard}>
-              <Text style={styles.infoLabel}>About</Text>
-              <Text style={styles.infoText}>{bio}</Text>
-            </View>
+            {bio.length > 0 && (
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>About</Text>
+                <Text style={styles.infoText}>{bio}</Text>
+              </View>
+            )}
 
             {location.length > 0 && (
               <View style={styles.infoRow}>
@@ -185,10 +268,32 @@ export default function ProfileScreen() {
 
             <View style={styles.postsGrid}>
               <Text style={styles.postsGridLabel}>Posts</Text>
-              <View style={styles.emptyPosts}>
-                <Text style={styles.emptyPostsText}>No posts yet.</Text>
-                <Text style={styles.emptyPostsSub}>Tap + to share your first creation.</Text>
-              </View>
+              {myPosts.length === 0 ? (
+                <View style={styles.emptyPosts}>
+                  <Text style={styles.emptyPostsText}>No posts yet.</Text>
+                  <Text style={styles.emptyPostsSub}>Tap + to share your first creation.</Text>
+                </View>
+              ) : (
+                <View style={styles.grid}>
+                  {myPosts.map(post => {
+                    const cellSize = (width - 32 - 4) / 3;
+                    return (
+                      <View key={post.id} style={[styles.gridCell, { width: cellSize, height: cellSize }]}>
+                        {post.image_url ? (
+                          <Image source={{ uri: post.image_url }} style={styles.gridImage} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.gridInspire}>
+                            <Text style={styles.gridInspireText} numberOfLines={3}>{post.text}</Text>
+                          </View>
+                        )}
+                        <View style={styles.gridSmiles}>
+                          <Text style={styles.gridSmilesText}>♡ {post.smile_count}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -224,6 +329,8 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center' },
+  loadingText: { color: '#888888', marginTop: 12, fontSize: 14 },
   container: { flex: 1, backgroundColor: '#000000' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
   headerTitle: { fontSize: 24, fontWeight: '700', color: '#FFC300' },
@@ -271,6 +378,13 @@ const styles = StyleSheet.create({
   emptyPosts: { alignItems: 'center', paddingVertical: 40, borderWidth: 1, borderColor: '#222222', borderRadius: 16, borderStyle: 'dashed' },
   emptyPostsText: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
   emptyPostsSub: { fontSize: 13, color: '#888888', marginTop: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
+  gridCell: { borderRadius: 4, overflow: 'hidden', backgroundColor: '#111111', position: 'relative' },
+  gridImage: { width: '100%', height: '100%' },
+  gridInspire: { flex: 1, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', padding: 6 },
+  gridInspireText: { fontSize: 9, color: '#FFC300', textAlign: 'center', fontStyle: 'italic', lineHeight: 13 },
+  gridSmiles: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },
+  gridSmilesText: { fontSize: 10, color: '#FFFFFF', fontWeight: '600' },
   modalContainer: { flex: 1, justifyContent: 'flex-end' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   modalBox: { backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 2, borderTopColor: '#FFC300', padding: 20, maxHeight: '70%' },

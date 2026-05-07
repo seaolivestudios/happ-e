@@ -1,18 +1,34 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { api } from '../api';
+import { getToken } from '../auth';
 
-const initialNotifications = [
-  { id: '1', type: 'like', user: '@maria', message: 'liked your photo', time: '2m ago', read: false },
-  { id: '2', type: 'comment', user: '@jake', message: 'commented: "This is incredible work!"', time: '15m ago', read: false },
-  { id: '3', type: 'follow', user: '@outdoorlife', message: 'started following you', time: '1h ago', read: false },
-  { id: '4', type: 'inspire', user: '✦ Inspire', message: 'New quote added to your Woodworking feed', time: '2h ago', read: false },
-  { id: '5', type: 'like', user: '@craftsman_joe', message: 'liked your photo', time: '3h ago', read: true },
-  { id: '6', type: 'comment', user: '@sarah_creates', message: 'commented: "How long did this take you?"', time: '5h ago', read: true },
-  { id: '7', type: 'follow', user: '@fishinglife', message: 'started following you', time: '8h ago', read: true },
-  { id: '8', type: 'inspire', user: '✦ Inspire', message: 'New quote added to your Outdoors feed', time: '1d ago', read: true },
-  { id: '9', type: 'like', user: '@woodcraft', message: 'liked your photo', time: '1d ago', read: true },
-  { id: '10', type: 'comment', user: '@nature_lens', message: 'commented: "Beautiful shot!"', time: '2d ago', read: true },
-];
+type Notification = {
+  id: string;
+  type: string;
+  actor_handle: string;
+  actor_name: string;
+  post_id: string | null;
+  read: boolean;
+  created_at: string;
+};
+
+function getMessage(n: Notification): string {
+  switch (n.type) {
+    case 'smile': return 'smiled at your post';
+    case 'comment': return 'commented on your post';
+    case 'follow': return 'started following you';
+    default: return 'interacted with you';
+  }
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 const getIcon = (type: string) => {
   switch (type) {
@@ -35,14 +51,31 @@ const getIconColor = (type: string) => {
 };
 
 export default function NotificationsScreen() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  useEffect(() => {
+    void loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const token = await getToken();
+      const result = await api.getNotifications(token ?? '');
+      if (result.success) setNotifications(result.notifications);
+    } catch {
+      // silently fail — empty list is fine
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      const token = await getToken();
+      await api.markAllNotificationsRead(token ?? '');
+    } catch {}
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -64,28 +97,40 @@ export default function NotificationsScreen() {
         </View>
       )}
 
-      <ScrollView style={styles.list}>
-        {notifications.map(item => (
-          <TouchableOpacity
-            key={item.id}
-            style={[styles.row, !item.read && styles.rowUnread]}
-            onPress={() => markRead(item.id)}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: getIconColor(item.type) + '22' }]}>
-              <Text style={[styles.icon, { color: getIconColor(item.type) }]}>{getIcon(item.type)}</Text>
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowUser}>{item.user} <Text style={styles.rowMessage}>{item.message}</Text></Text>
-              <Text style={styles.rowTime}>{item.time}</Text>
-            </View>
-            {!item.read && <View style={styles.unreadDot} />}
-          </TouchableOpacity>
-        ))}
-
-        <View style={styles.endMessage}>
-          <Text style={styles.endText}>✦ You're all caught up</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#FFC300" />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView style={styles.list}>
+          {notifications.length === 0 ? (
+            <View style={styles.endMessage}>
+              <Text style={styles.endText}>✦ No notifications yet</Text>
+            </View>
+          ) : (
+            notifications.map(item => (
+              <View
+                key={item.id}
+                style={[styles.row, !item.read && styles.rowUnread]}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: getIconColor(item.type) + '22' }]}>
+                  <Text style={[styles.icon, { color: getIconColor(item.type) }]}>{getIcon(item.type)}</Text>
+                </View>
+                <View style={styles.rowContent}>
+                  <Text style={styles.rowUser}>
+                    {item.actor_handle} <Text style={styles.rowMessage}>{getMessage(item)}</Text>
+                  </Text>
+                  <Text style={styles.rowTime}>{timeAgo(item.created_at)}</Text>
+                </View>
+                {!item.read && <View style={styles.unreadDot} />}
+              </View>
+            ))
+          )}
+          <View style={styles.endMessage}>
+            <Text style={styles.endText}>✦ You're all caught up</Text>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -107,6 +152,7 @@ const styles = StyleSheet.create({
   rowMessage: { fontSize: 14, color: '#FFFFFF', fontWeight: '400' },
   rowTime: { fontSize: 12, color: '#888888', marginTop: 3 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFC300', flexShrink: 0 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
   endMessage: { padding: 30, alignItems: 'center' },
   endText: { fontSize: 13, color: '#444444' },
 });

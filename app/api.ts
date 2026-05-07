@@ -1,4 +1,25 @@
 const API_URL = 'https://happe-backend-production.up.railway.app';
+const CLOUDINARY_CLOUD = 'dspvqmbox';
+const CLOUDINARY_PRESET = 'ml_default';
+
+export const uploadMedia = async (uri: string, type: 'image' | 'video'): Promise<string> => {
+  const filename = uri.split('/').pop() ?? (type === 'video' ? 'upload.mp4' : 'upload.jpg');
+  const mimeType = type === 'video' ? 'video/mp4' : 'image/jpeg';
+  const resourceType = type === 'video' ? 'video' : 'image';
+
+  const formData = new FormData();
+  formData.append('file', { uri, name: filename, type: mimeType } as any);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${resourceType}/upload`,
+    { method: 'POST', body: formData }
+  );
+
+  const data = await response.json();
+  if (!data.secure_url) throw new Error(data.error?.message ?? 'Upload failed');
+  return data.secure_url;
+};
 
 export const api = {
   // Auth
@@ -48,13 +69,99 @@ export const api = {
     return response.json();
   },
 
-  createPost: async (formData: FormData, token: string) => {
+  createPost: async (payload: { type: string; text: string; image_url?: string; video_url?: string }, token: string) => {
     const response = await fetch(`${API_URL}/posts`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: formData,
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  completeOnboarding: async (interests: string[], token: string) => {
+    const response = await fetch(`${API_URL}/onboarding/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ interests }),
+    });
+    return response.json();
+  },
+
+  getMyPosts: async (token: string) => {
+    const response = await fetch(`${API_URL}/profile/me/posts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  // Users
+  searchUsers: async (q: string) => {
+    const response = await fetch(`${API_URL}/users/search?q=${encodeURIComponent(q)}`);
+    return response.json();
+  },
+
+  getSuggestedUsers: async () => {
+    const response = await fetch(`${API_URL}/users/suggested`);
+    return response.json();
+  },
+
+  follow: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/follows/${userId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  unfollow: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/follows/${userId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  // Notifications
+  getNotifications: async (token: string) => {
+    const response = await fetch(`${API_URL}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  markAllNotificationsRead: async (token: string) => {
+    const response = await fetch(`${API_URL}/notifications/read-all`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  // Sparks
+  getCurrentSpark: async () => {
+    const response = await fetch(`${API_URL}/sparks/current`);
+    return response.json();
+  },
+
+  getSparkResponses: async () => {
+    const response = await fetch(`${API_URL}/sparks/current/responses`);
+    return response.json();
+  },
+
+  respondToSpark: async (payload: { type: string; text: string; image_url?: string; video_url?: string }, token: string) => {
+    const response = await fetch(`${API_URL}/sparks/current/respond`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
     });
     return response.json();
   },

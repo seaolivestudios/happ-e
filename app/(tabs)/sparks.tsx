@@ -1,54 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { api } from '../api';
 
-const todaysSpark = {
-  prompt: 'Show us your workspace right now — messy or not.',
-  timeLeft: '31h left',
-  responses: 847,
+type SparkResponse = {
+  id: string;
+  handle: string;
+  name: string;
+  image_url: string | null;
+  text: string;
+  smile_count: number;
 };
 
-const topSparks = [
-  { id: 't1', user: '@jake', name: 'Jake Miller', image: 'https://picsum.photos/seed/spark1/600/750', caption: 'My shop at 6am. Coffee mandatory.', smiles: 412, category: 'Woodworking' },
-  { id: 't2', user: '@maria', name: 'Maria Santos', image: 'https://picsum.photos/seed/spark2/600/750', caption: 'Chaos is part of the process.', smiles: 389, category: 'Photography' },
-  { id: 't3', user: '@sarah', name: 'Sarah Creates', image: 'https://picsum.photos/seed/spark3/600/750', caption: 'Paint everywhere. No regrets.', smiles: 301, category: 'Painting' },
-  { id: 't4', user: '@outdoors', name: 'Tom Harris', image: 'https://picsum.photos/seed/spark4/600/750', caption: 'Office view today. Not bad.', smiles: 278, category: 'Outdoors' },
-  { id: 't5', user: '@craftsman', name: 'Joe Briggs', image: 'https://picsum.photos/seed/spark5/600/750', caption: 'Tools of the trade. Always ready.', smiles: 245, category: 'Woodworking' },
-];
+type Spark = {
+  prompt: string;
+  responses: number;
+};
 
-const moreSparks = [
-  { id: 'm1', user: '@potter', name: 'Grace Liu', image: 'https://picsum.photos/seed/spark6/600/750', caption: 'Clay everywhere. Just how I like it.', smiles: 198, category: 'Pottery' },
-  { id: 'm2', user: '@guitar', name: 'Mike Davis', image: 'https://picsum.photos/seed/spark7/600/750', caption: 'Three guitars, one notebook, zero excuses.', smiles: 176, category: 'Music' },
-  { id: 'm3', user: '@garden', name: 'Anne Walsh', image: 'https://picsum.photos/seed/spark8/600/750', caption: 'Dirt under my nails is a good sign.', smiles: 154, category: 'Gardening' },
-  { id: 'm4', user: '@fishing', name: 'Dale Reeves', image: 'https://picsum.photos/seed/spark9/600/750', caption: 'Tackle box organized. Almost.', smiles: 143, category: 'Fishing' },
-  { id: 'm5', user: '@baker', name: 'Lily Chen', image: 'https://picsum.photos/seed/spark10/600/750', caption: 'Flour on everything. Worth it.', smiles: 132, category: 'Cooking' },
-  { id: 'm6', user: '@hiker', name: 'Ben Torres', image: 'https://picsum.photos/seed/spark11/600/750', caption: 'Pack ready. Sunrise in 4 hours.', smiles: 121, category: 'Outdoors' },
-  { id: 'm7', user: '@woodcraft', name: 'Ray Santos', image: 'https://picsum.photos/seed/spark12/600/750', caption: 'Sawdust is my perfume.', smiles: 118, category: 'Woodworking' },
-  { id: 'm8', user: '@sculptor', name: 'Rita Patel', image: 'https://picsum.photos/seed/spark13/600/750', caption: 'Mid-project chaos is the best chaos.', smiles: 109, category: 'Sculpting' },
-];
+function hoursLeft(): string {
+  const now = new Date();
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  const diff = Math.floor((endOfDay.getTime() - now.getTime()) / 3600000);
+  return `${diff}h left`;
+}
 
-const SparkCard = ({ item, rank }: { item: any, rank?: number }) => (
+const SparkCard = ({ item, rank }: { item: SparkResponse; rank?: number }) => (
   <View style={styles.sparkCard}>
     <View style={styles.sparkCardHeader}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
+        <Text style={styles.avatarText}>{(item.name || item.handle).charAt(0).toUpperCase()}</Text>
       </View>
       <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.name}</Text>
-        <Text style={styles.userHandle}>{item.user} · {item.category}</Text>
+        <Text style={styles.userName}>{item.name || item.handle}</Text>
+        <Text style={styles.userHandle}>{item.handle}</Text>
       </View>
-      {rank && (
+      {rank != null && (
         <View style={styles.rankBadge}>
           <Text style={styles.rankText}>#{rank}</Text>
         </View>
       )}
     </View>
-    <Image source={{ uri: item.image }} style={styles.sparkImage} resizeMode="cover" />
+    {item.image_url ? (
+      <Image source={{ uri: item.image_url }} style={styles.sparkImage} resizeMode="cover" />
+    ) : null}
     <View style={styles.sparkCardFooter}>
-      <Text style={styles.sparkCaption}>{item.caption}</Text>
+      <Text style={styles.sparkCaption}>{item.text}</Text>
       <View style={styles.sparkActions}>
         <TouchableOpacity style={styles.sparkActionBtn}>
           <Ionicons name="happy-outline" size={20} color="#333333" />
-          <Text style={styles.sparkActionCount}>{item.smiles}</Text>
+          <Text style={styles.sparkActionCount}>{item.smile_count}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.sparkActionBtn}>
           <Ionicons name="chatbubble-outline" size={20} color="#333333" />
@@ -62,44 +63,84 @@ const SparkCard = ({ item, rank }: { item: any, rank?: number }) => (
 );
 
 export default function SparksScreen() {
+  const [spark, setSpark] = useState<Spark | null>(null);
+  const [responses, setResponses] = useState<SparkResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void loadSparks();
+  }, []);
+
+  const loadSparks = async () => {
+    try {
+      const [sparkResult, responsesResult] = await Promise.all([
+        api.getCurrentSpark(),
+        api.getSparkResponses(),
+      ]);
+      if (sparkResult.success) setSpark(sparkResult.spark);
+      if (responsesResult.success) {
+        setResponses(responsesResult.responses.map((r: any) => ({
+          ...r,
+          id: String(r.id),
+          smile_count: parseInt(r.smile_count) || 0,
+        })));
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>⚡ Sparks</Text>
-        <Text style={styles.subtitle}>A new creative challenge every 48 hours</Text>
+        <Text style={styles.subtitle}>A new creative challenge every day</Text>
       </View>
-      <ScrollView style={styles.body}>
-        <View style={styles.todayBanner}>
-          <View style={styles.todayBannerTop}>
-            <View>
-              <Text style={styles.todayLabel}>⚡ Today's Spark</Text>
-              <Text style={styles.todayTime}>{todaysSpark.timeLeft} · {todaysSpark.responses} responses</Text>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#FFC300" />
+        </View>
+      ) : (
+        <ScrollView style={styles.body}>
+          {spark && (
+            <View style={styles.todayBanner}>
+              <View style={styles.todayBannerTop}>
+                <View>
+                  <Text style={styles.todayLabel}>⚡ Today's Spark</Text>
+                  <Text style={styles.todayTime}>{hoursLeft()} · {spark.responses} responses</Text>
+                </View>
+                <TouchableOpacity style={styles.respondBtn}>
+                  <Text style={styles.respondBtnText}>Respond</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.todayPrompt}>{spark.prompt}</Text>
             </View>
-            <TouchableOpacity style={styles.respondBtn}>
-              <Text style={styles.respondBtnText}>Respond</Text>
-            </TouchableOpacity>
+          )}
+
+          {responses.length > 0 ? (
+            <>
+              <Text style={styles.sectionLabel}>🏆 Top Sparks Today</Text>
+              <Text style={styles.sectionSub}>Voted by the community</Text>
+              {responses.map((item, index) => (
+                <SparkCard key={item.id} item={item} rank={index + 1} />
+              ))}
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No responses yet.</Text>
+              <Text style={styles.emptySub}>Be the first to respond to today's Spark!</Text>
+            </View>
+          )}
+
+          <View style={styles.endMessage}>
+            <Text style={styles.endText}>⚡ You've seen all of today's Sparks</Text>
+            <Text style={styles.endSub}>Come back tomorrow for a new challenge</Text>
           </View>
-          <Text style={styles.todayPrompt}>{todaysSpark.prompt}</Text>
-        </View>
-
-        <Text style={styles.sectionLabel}>🏆 Top Sparks Today</Text>
-        <Text style={styles.sectionSub}>Voted by the community</Text>
-
-        {topSparks.map((item, index) => (
-          <SparkCard key={item.id} item={item} rank={index + 1} />
-        ))}
-
-        <Text style={styles.sectionLabel}>More Sparks</Text>
-
-        {moreSparks.map(item => (
-          <SparkCard key={item.id} item={item} />
-        ))}
-
-        <View style={styles.endMessage}>
-          <Text style={styles.endText}>⚡ You've seen all of today's Sparks</Text>
-          <Text style={styles.endSub}>Come back tomorrow for a new challenge</Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -134,6 +175,10 @@ const styles = StyleSheet.create({
   sparkActions: { flexDirection: 'row', gap: 20, borderTopWidth: 0.5, borderTopColor: '#E0E0E0', paddingTop: 10 },
   sparkActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sparkActionCount: { fontSize: 13, color: '#888888' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyText: { fontSize: 15, fontWeight: '600', color: '#000000' },
+  emptySub: { fontSize: 13, color: '#888888', marginTop: 6, textAlign: 'center' },
   endMessage: { padding: 30, alignItems: 'center' },
   endText: { fontSize: 14, fontWeight: '600', color: '#000000' },
   endSub: { fontSize: 12, color: '#888888', marginTop: 4 },

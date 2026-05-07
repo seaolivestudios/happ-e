@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -9,6 +9,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { api } from '../api';
+import { getToken } from '../auth';
 
 type User = {
   id: string;
@@ -46,16 +48,6 @@ type Section =
 
 type TabKey = 'discover' | 'people' | 'categories';
 
-const ALL_USERS: User[] = [
-  { id: 'u1', name: 'Maria Santos', handle: '@maria', category: 'Photography', verified: true },
-  { id: 'u2', name: 'Jake Miller', handle: '@jake', category: 'Woodworking', verified: true },
-  { id: 'u3', name: 'Sarah Creates', handle: '@sarah_creates', category: 'Painting', verified: true },
-  { id: 'u4', name: 'Outdoor Life', handle: '@outdoorlife', category: 'Outdoors', verified: true },
-  { id: 'u5', name: 'Craftsman Joe', handle: '@craftsman_joe', category: 'Woodworking', verified: true },
-  { id: 'u6', name: 'Nature Lens', handle: '@nature_lens', category: 'Photography', verified: true },
-  { id: 'u7', name: 'Fishing Life', handle: '@fishinglife', category: 'Fishing', verified: true },
-  { id: 'u8', name: 'Wood Craft', handle: '@woodcraft', category: 'Woodworking', verified: true },
-];
 
 const TRENDING_CATEGORIES: TrendingCategory[] = [
   { id: 'c1', label: 'Woodworking', emoji: '🪵', posts: '2.4k' },
@@ -194,15 +186,48 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
-  const [users, setUsers] = useState<User[]>(ALL_USERS);
+  const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleFollow = useCallback((id: string) => {
-    setUsers(prev =>
-      prev.map(user =>
-        user.id === id ? { ...user, following: !user.following } : user
-      )
-    );
+  useEffect(() => {
+    void loadSuggested();
   }, []);
+
+  const loadSuggested = async () => {
+    try {
+      const result = await api.getSuggestedUsers();
+      if (result.success) setSuggestedUsers(result.users.map((u: any) => ({ ...u, id: String(u.id) })));
+    } catch {}
+  };
+
+  const handleFollow = useCallback(async (id: string) => {
+    const updateFollowing = (prev: User[]) =>
+      prev.map(u => u.id === id ? { ...u, following: !u.following } : u);
+    setSuggestedUsers(updateFollowing);
+    setSearchResults(updateFollowing);
+    try {
+      const token = await getToken();
+      const user = [...suggestedUsers, ...searchResults].find(u => u.id === id);
+      if (user?.following) {
+        await api.unfollow(id, token ?? '');
+      } else {
+        await api.follow(id, token ?? '');
+      }
+    } catch {}
+  }, [suggestedUsers, searchResults]);
+
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    const q = query.trim();
+    if (!q) { setSearchResults([]); return; }
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const result = await api.searchUsers(q);
+        if (result.success) setSearchResults(result.users.map((u: any) => ({ ...u, id: String(u.id) })));
+      } catch {}
+    }, 300);
+  }, [query]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const isSearching = normalizedQuery.length > 0;
@@ -215,16 +240,6 @@ export default function SearchScreen() {
   const widescreenHeight = (width - 32) * (9 / 16);
 
   const sections = useMemo(() => buildSections(GRID_POSTS, WIDESCREEN_POSTS), []);
-
-  const filteredUsers = useMemo(() => {
-    if (!normalizedQuery) return [];
-    return users.filter((user) => {
-      const name = user.name.toLowerCase();
-      const handle = user.handle.toLowerCase();
-      const category = user.category.toLowerCase();
-      return name.includes(normalizedQuery) || handle.includes(normalizedQuery) || category.includes(normalizedQuery);
-    });
-  }, [normalizedQuery, users]);
 
   return (
     <View style={styles.container}>
@@ -272,10 +287,10 @@ export default function SearchScreen() {
         {isSearching ? (
           <View style={styles.searchResults}>
             <Text style={styles.sectionLabel}>Results for "{query.trim()}"</Text>
-            {filteredUsers.length === 0 ? (
+            {searchResults.length === 0 ? (
               <Text style={styles.noResults}>No results found.</Text>
             ) : (
-              filteredUsers.map((user) => <UserRow key={user.id} user={user} onFollow={handleFollow} />)
+              searchResults.map((user) => <UserRow key={user.id} user={user} onFollow={handleFollow} />)
             )}
           </View>
         ) : activeTab === 'discover' ? (
@@ -330,7 +345,7 @@ export default function SearchScreen() {
         ) : activeTab === 'people' ? (
           <View style={styles.searchResults}>
             <Text style={styles.sectionLabel}>Suggested People</Text>
-            {users.map((user) => (
+            {suggestedUsers.map((user) => (
               <UserRow key={user.id} user={user} onFollow={handleFollow} />
             ))}
           </View>

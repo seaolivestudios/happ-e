@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { api } from '../api';
+import { api, uploadMedia } from '../api';
 import { getToken, getUser } from '../auth';
 
 const categories = ['Woodworking', 'Photography', 'Painting', 'Outdoors', 'Fishing', 'Baseball', 'Music', 'Other'];
@@ -90,23 +90,19 @@ export default function CreateScreen() {
 
     try {
       const token = await getToken();
-      const formData = new FormData();
-      formData.append('text', caption.trim());
-      formData.append('category', selectedCategory);
-      formData.append('type', mediaType ?? 'image');
+      const type = mediaType ?? 'image';
+      const mediaUrl = await uploadMedia(mediaUri, type);
 
-      const filename = mediaUri.split('/').pop() ?? 'upload.jpg';
-      const mimeType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
+      const payload = {
+        type,
+        text: caption.trim(),
+        image_url: type === 'image' ? mediaUrl : undefined,
+        video_url: type === 'video' ? mediaUrl : undefined,
+      };
 
-      formData.append('file', {
-        uri: mediaUri,
-        name: filename,
-        type: mimeType,
-      } as any);
+      const result = await api.createPost(payload, token ?? '');
 
-      const result = await api.createPost(formData, token ?? '');
-
-      if (result.success || result.id) {
+      if (result.success || result.post) {
         Alert.alert('Posted!', 'Your post has been shared.', [
           { text: 'OK', onPress: () => router.replace('/(tabs)/index') }
         ]);

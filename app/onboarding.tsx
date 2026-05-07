@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { api } from './api';
+import { getToken } from './auth';
 
 const { width } = Dimensions.get('window');
 
@@ -112,9 +114,18 @@ const interestCategories = [
   },
 ];
 
+function getLabel(id: string): string {
+  for (const section of interestCategories) {
+    const item = section.items.find(i => i.id === id);
+    if (item) return item.label;
+  }
+  return id;
+}
+
 export default function OnboardingScreen() {
   const [selected, setSelected] = useState<string[]>([]);
   const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
 
   const toggle = (id: string) => {
     setSelected(prev =>
@@ -122,9 +133,19 @@ export default function OnboardingScreen() {
     );
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (step === 1) {
       if (selected.length < 3) return;
+      setSaving(true);
+      try {
+        const token = await getToken();
+        const labels = selected.map(getLabel);
+        await api.completeOnboarding(labels, token ?? '');
+      } catch {
+        // non-blocking — proceed even if save fails
+      } finally {
+        setSaving(false);
+      }
       setStep(2);
     } else {
       router.replace('/(tabs)' as any);
@@ -180,7 +201,7 @@ export default function OnboardingScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>Happ-E</Text>
-        <Text style={styles.stepText}>Step 2 of 2</Text>
+        <Text style={styles.stepText}>Step 1 of 2</Text>
       </View>
       <Text style={styles.title}>What are you into?</Text>
       <Text style={styles.subtitle}>Pick at least 3 interests. We'll personalize your Inspire feed around what matters to you.</Text>
@@ -206,11 +227,15 @@ export default function OnboardingScreen() {
       <View style={styles.footer}>
         <Text style={styles.selectedCount}>{selected.length} selected {selected.length < 3 ? `— pick ${3 - selected.length} more` : '— looking good!'}</Text>
         <TouchableOpacity
-          style={[styles.continueBtn, selected.length < 3 && styles.continueBtnDisabled]}
+          style={[styles.continueBtn, (selected.length < 3 || saving) && styles.continueBtnDisabled]}
           onPress={handleContinue}
-          disabled={selected.length < 3}
+          disabled={selected.length < 3 || saving}
         >
-          <Text style={styles.continueBtnText}>Continue</Text>
+          {saving ? (
+            <ActivityIndicator color="#000000" />
+          ) : (
+            <Text style={styles.continueBtnText}>Continue</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
