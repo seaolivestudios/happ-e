@@ -8,7 +8,6 @@ import {
   Animated,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -118,7 +117,7 @@ function ImageCard({
 }
 
 export default function HomeScreen() {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const cardWidth = width - PORTRAIT_CARD_HORIZONTAL_MARGIN * 2;
   const imageHeight = cardWidth * (5 / 4);
   const portraitCardEstimatedHeight = imageHeight + PORTRAIT_CARD_EXTRA_HEIGHT;
@@ -132,19 +131,10 @@ export default function HomeScreen() {
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string } | null>(null);
-  const [widescreenVisible, setWidescreenVisible] = useState(false);
-  const [widescreenPostId, setWidescreenPostId] = useState<string | null>(null);
-
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
   const portraitScrollRef = useRef<ScrollView>(null);
-  const widescreenScrollRef = useRef<ScrollView>(null);
-
-  const widescreenPosts = useMemo(
-    () => posts.filter((post) => post.widescreen),
-    [posts]
-  );
 
   const commentPost = useMemo(
     () => posts.find((post) => post.id === commentPostId) ?? null,
@@ -239,23 +229,6 @@ export default function HomeScreen() {
     return () => cancelAnimationFrame(frame);
   }, [currentPostId, portraitCardEstimatedHeight, posts]);
 
-  // Scroll widescreen modal to the tapped post when it opens
-  useEffect(() => {
-    if (!widescreenVisible || !widescreenPostId) return;
-
-    const index = widescreenPosts.findIndex((p) => p.id === widescreenPostId);
-    const targetIndex = index >= 0 ? index : 0;
-
-    const frame = requestAnimationFrame(() => {
-      widescreenScrollRef.current?.scrollTo({
-        y: targetIndex * height,
-        animated: false,
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [widescreenVisible, widescreenPostId, widescreenPosts, height]);
-
   const openMenu = useCallback(() => {
     setMenuOpen(true);
   }, []);
@@ -324,16 +297,6 @@ export default function HomeScreen() {
       setNewComment('');
     });
   }, [commentAnim, commentDrawerHiddenX, commentOpacity]);
-
-  const openWidescreen = useCallback((postId: string) => {
-    setWidescreenPostId(postId);
-    setWidescreenVisible(true);
-  }, []);
-
-  const closeWidescreen = useCallback(() => {
-    setWidescreenVisible(false);
-    setWidescreenPostId(null);
-  }, []);
 
   const handleSmile = useCallback(
     async (id: string) => {
@@ -543,20 +506,6 @@ export default function HomeScreen() {
               <Text style={styles.cardHandle}>{post.user}</Text>
             </View>
 
-            {post.widescreen ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="View in widescreen"
-                hitSlop={10}
-                style={styles.widescreenBadge}
-                onPress={() => openWidescreen(post.id)}
-              >
-                <Image
-                  source={require('../../assets/images/arrows-left-right.png')}
-                  style={styles.widescreenIcon}
-                />
-              </Pressable>
-            ) : null}
           </View>
 
           {post.type === 'video' && post.video ? (
@@ -577,92 +526,7 @@ export default function HomeScreen() {
         </View>
       );
     },
-    [imageHeight, openWidescreen, renderActions]
-  );
-
-  const renderHorizontalCard = useCallback(
-    (post: Post) => {
-      const smiled = smiledPosts.has(post.id);
-
-      return (
-        <View
-          key={post.id}
-          style={[styles.horizontalCard, { width, height }]}
-        >
-          {post.type === 'video' && post.video ? (
-            <Video
-              source={{ uri: post.video }}
-              style={styles.horizontalMedia}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={false}
-              isLooping
-              useNativeControls
-            />
-          ) : post.image ? (
-            <Image
-              source={{ uri: post.image }}
-              style={styles.horizontalMedia}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.horizontalInspire}>
-              <Text style={styles.horizontalInspireLabel}>✦ Inspire</Text>
-              <Text style={styles.horizontalInspireText}>{post.text}</Text>
-              {post.author ? (
-                <Text style={styles.horizontalInspireAuthor}>— {post.author}</Text>
-              ) : null}
-            </View>
-          )}
-
-          {(post.image || post.video) ? (
-            <View style={styles.horizontalBottom}>
-              <Text style={styles.horizontalUser}>{getDisplayName(post)}</Text>
-              <Text style={styles.horizontalText}>{post.text}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.sideActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Smile post from ${getDisplayName(post)}`}
-              hitSlop={10}
-              style={styles.sideBtn}
-              onPress={() => {
-                void handleSmile(post.id);
-              }}
-            >
-              <Ionicons
-                name={smiled ? 'happy' : 'happy-outline'}
-                size={28}
-                color={smiled ? '#FFC300' : '#FFFFFF'}
-              />
-              <Text style={styles.sideCount}>{post.smiles}</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open comments for ${getDisplayName(post)}`}
-              hitSlop={10}
-              style={styles.sideBtn}
-              onPress={() => openComments(post.id)}
-            >
-              <Ionicons name="chatbubble-outline" size={28} color="#FFFFFF" />
-              <Text style={styles.sideCount}>{post.comments.length}</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Share post from ${getDisplayName(post)}`}
-              hitSlop={10}
-              style={styles.sideBtn}
-            >
-              <Ionicons name="arrow-redo-outline" size={28} color="#FFFFFF" />
-            </Pressable>
-          </View>
-        </View>
-      );
-    },
-    [handleSmile, height, openComments, smiledPosts, width]
+    [imageHeight, renderActions]
   );
 
   return (
@@ -879,35 +743,6 @@ export default function HomeScreen() {
         </>
       ) : null}
 
-      <Modal
-        visible={widescreenVisible}
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={closeWidescreen}
-      >
-        <View style={styles.widescreenModal}>
-          <ScrollView
-            ref={widescreenScrollRef}
-            pagingEnabled
-            showsVerticalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToInterval={height}
-            snapToAlignment="start"
-          >
-            {widescreenPosts.map(renderHorizontalCard)}
-          </ScrollView>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close widescreen"
-            hitSlop={16}
-            style={styles.widescreenClose}
-            onPress={closeWidescreen}
-          >
-            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
-          </Pressable>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1011,16 +846,6 @@ const styles = StyleSheet.create({
     color: '#888888',
     marginTop: 1,
   },
-  widescreenBadge: {
-    backgroundColor: '#000000',
-    borderRadius: 6,
-    padding: 6,
-  },
-  widescreenIcon: {
-    width: 18,
-    height: 18,
-    tintColor: '#FFC300',
-  },
   imageCardContainer: {
     width: '100%',
     backgroundColor: '#F0F0F0',
@@ -1102,80 +927,6 @@ const styles = StyleSheet.create({
   },
   actionCountSmiled: {
     color: '#FFC300',
-  },
-  horizontalCard: {
-    backgroundColor: '#000000',
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  horizontalMedia: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  horizontalBottom: {
-    padding: 24,
-    paddingBottom: 40,
-    paddingRight: 90,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  horizontalUser: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFC300',
-    marginBottom: 6,
-    letterSpacing: 1,
-  },
-  horizontalText: {
-    fontSize: 20,
-    lineHeight: 28,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  horizontalInspire: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 60,
-    backgroundColor: '#000000',
-  },
-  horizontalInspireLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFC300',
-    marginBottom: 20,
-    letterSpacing: 2,
-  },
-  horizontalInspireText: {
-    fontSize: 26,
-    lineHeight: 38,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  horizontalInspireAuthor: {
-    fontSize: 15,
-    color: '#FFC300',
-    marginTop: 20,
-    fontWeight: '600',
-  },
-  sideActions: {
-    position: 'absolute',
-    right: 16,
-    bottom: 60,
-    alignItems: 'center',
-    gap: 24,
-  },
-  sideBtn: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  sideCount: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   menuOverlay: {
     position: 'absolute',
@@ -1359,14 +1110,5 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  widescreenModal: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  widescreenClose: {
-    position: 'absolute',
-    top: 56,
-    right: 20,
   },
 });
