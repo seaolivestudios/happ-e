@@ -1,5 +1,4 @@
 // app/(tabs)/_layout.tsx
-import { HapticTab } from '@/components/haptic-tab';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -12,7 +11,6 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarButton: (props) => <HapticTab {...props} />,
         tabBarActiveTintColor: '#FFC300',
         tabBarInactiveTintColor: '#888888',
         tabBarStyle: isLandscape ? styles.hiddenTabBar : styles.tabBar,
@@ -91,20 +89,9 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 60,
-    paddingBottom: 8,
     backgroundColor: '#000000',
     borderTopWidth: 2,
     borderTopColor: '#FFC300',
-    ...Platform.select({
-      ios: {
-        backgroundColor: '#000000',
-      },
-      android: {
-        backgroundColor: '#000000',
-      },
-      default: {},
-    }),
   },
   hiddenTabBar: {
     position: 'absolute',
