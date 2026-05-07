@@ -634,35 +634,37 @@ export default function HomeScreen() {
           <Text style={styles.landscapeBannerText}>Widescreen mode</Text>
         </View>
       )}
-<View style={[styles.header, isLandscape && { display: 'none' }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open menu"
-          hitSlop={10}
-          onPress={openMenu}
-          style={styles.hamburger}
-        >
-          <View style={styles.hamburgerLine} />
-          <View style={styles.hamburgerLine} />
-          <View style={styles.hamburgerLine} />
-        </Pressable>
+{!isLandscape && (
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+            hitSlop={10}
+            onPress={openMenu}
+            style={styles.hamburger}
+          >
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+            <View style={styles.hamburgerLine} />
+          </Pressable>
 
-        <Image
-          source={require('../../assets/images/Logo v_1.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
+          <Image
+            source={require('../../assets/images/Logo v_1.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open notifications"
-          hitSlop={10}
-          style={styles.smilesBtn}
-          onPress={() => router.push('/(tabs)/notifications')}
-        >
-          <Ionicons name="happy-outline" size={26} color="#FFC300" />
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+            hitSlop={10}
+            style={styles.smilesBtn}
+            onPress={() => router.push('/(tabs)/notifications')}
+          >
+            <Ionicons name="happy-outline" size={26} color="#FFC300" />
+          </Pressable>
+        </View>
+      )}
 
       {isLoadingPosts ? (
         <View style={styles.loadingState}>

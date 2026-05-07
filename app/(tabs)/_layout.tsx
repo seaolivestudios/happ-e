@@ -35,6 +35,9 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarLabel: '',
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore – valid React Navigation bottom-tab option, not yet typed in expo-router
+          unmountOnBlur: true,
           tabBarIcon: () => (
             <View style={styles.postButton}>
               <Text style={styles.postButtonText}>+</Text>
