@@ -569,7 +569,7 @@ export default function HomeScreen() {
       ) : (
         <ScrollView
           ref={portraitScrollRef}
-          style={styles.feed}
+          style={[styles.feed, { marginBottom: tabBarHeight }]}
           onScroll={handlePortraitScroll}
           scrollEventThrottle={16}
           contentContainerStyle={[styles.feedContent, { paddingBottom: tabBarHeight }]}
