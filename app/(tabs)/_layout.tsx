@@ -94,11 +94,9 @@ const styles = StyleSheet.create({
     borderTopColor: '#FFC300',
   },
   hiddenTabBar: {
-    position: 'absolute',
     height: 0,
     overflow: 'hidden',
     borderTopWidth: 0,
-    paddingBottom: 0,
   },
   tabBarLabel: {
     fontSize: 11,
