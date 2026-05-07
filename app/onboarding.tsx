@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from './api';
 import { getToken } from './auth';
 
@@ -125,7 +125,6 @@ function getLabel(id: string): string {
 export default function OnboardingScreen() {
   const [selected, setSelected] = useState<string[]>([]);
   const [step, setStep] = useState(1);
-  const [saving, setSaving] = useState(false);
 
   const toggle = (id: string) => {
     setSelected(prev =>
@@ -133,19 +132,13 @@ export default function OnboardingScreen() {
     );
   };
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     if (step === 1) {
       if (selected.length < 3) return;
-      setSaving(true);
-      try {
-        const token = await getToken();
-        const labels = selected.map(getLabel);
-        await api.completeOnboarding(labels, token ?? '');
-      } catch {
-        // non-blocking — proceed even if save fails
-      } finally {
-        setSaving(false);
-      }
+      const labels = selected.map(getLabel);
+      getToken().then(token => {
+        api.completeOnboarding(labels, token ?? '').catch(() => {});
+      }).catch(() => {});
       setStep(2);
     } else {
       router.replace('/(tabs)' as any);
@@ -227,15 +220,11 @@ export default function OnboardingScreen() {
       <View style={styles.footer}>
         <Text style={styles.selectedCount}>{selected.length} selected {selected.length < 3 ? `— pick ${3 - selected.length} more` : '— looking good!'}</Text>
         <TouchableOpacity
-          style={[styles.continueBtn, (selected.length < 3 || saving) && styles.continueBtnDisabled]}
+          style={[styles.continueBtn, selected.length < 3 && styles.continueBtnDisabled]}
           onPress={handleContinue}
-          disabled={selected.length < 3 || saving}
+          disabled={selected.length < 3}
         >
-          {saving ? (
-            <ActivityIndicator color="#000000" />
-          ) : (
-            <Text style={styles.continueBtnText}>Continue</Text>
-          )}
+          <Text style={styles.continueBtnText}>Continue</Text>
         </TouchableOpacity>
       </View>
     </View>
