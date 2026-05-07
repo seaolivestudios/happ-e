@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -332,13 +331,8 @@ export default function CreateScreen() {
 
       </ScrollView>
 
-      {/* Category modal */}
-      <Modal
-        visible={categoryModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setCategoryModalVisible(false)}
-      >
+      {/* Category overlay */}
+      {categoryModalVisible && (
         <View style={styles.modalContainer}>
           <Pressable style={styles.modalBackdrop} onPress={() => setCategoryModalVisible(false)} />
           <View style={styles.modalSheet}>
@@ -389,7 +383,7 @@ export default function CreateScreen() {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -480,7 +474,7 @@ const styles = StyleSheet.create({
   guidelinesText: { fontSize: 13, color: '#FFFFFF', lineHeight: 20, opacity: 0.85 },
 
   // Category modal
-  modalContainer: { flex: 1, justifyContent: 'flex-end' },
+  modalContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', zIndex: 999 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   modalSheet: {
     backgroundColor: '#111111', borderTopLeftRadius: 24, borderTopRightRadius: 24,

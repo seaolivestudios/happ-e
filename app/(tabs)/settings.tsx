@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Modal,
   ScrollView,
   StyleSheet,
   Switch,
@@ -380,8 +379,8 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      {/* Interests Modal */}
-      <Modal visible={interestsModalVisible} animationType="slide" statusBarTranslucent>
+      {/* Interests overlay */}
+      {interestsModalVisible && (
         <View style={styles.interestsModal}>
           <View style={styles.interestsHeader}>
             <TouchableOpacity onPress={() => setInterestsModalVisible(false)} style={{ width: 60 }}>
@@ -433,9 +432,10 @@ export default function SettingsScreen() {
             </ScrollView>
           )}
         </View>
-      </Modal>
+      )}
 
-      <Modal visible={pwModalVisible} animationType="slide" transparent>
+      {/* Password overlay */}
+      {pwModalVisible && (
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Change Password</Text>
@@ -486,7 +486,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   deleteBtn: { marginHorizontal: 16, marginBottom: 8, backgroundColor: '#111111', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FF4444' },
   deleteText: { fontSize: 16, fontWeight: '700', color: '#FF4444' },
   footer: { fontSize: 11, color: '#333333', textAlign: 'center', padding: 20 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', zIndex: 999 },
   modalCard: { backgroundColor: '#111111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 2, borderTopColor: '#FFC300' },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 20 },
   input: { backgroundColor: '#000000', borderRadius: 12, borderWidth: 1, borderColor: '#333333', padding: 14, color: '#FFFFFF', fontSize: 15, marginBottom: 12 },
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 15, color: '#888888' },
 
   // Interests modal
-  interestsModal: { flex: 1, backgroundColor: '#000000' },
+  interestsModal: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000000', zIndex: 999 },
   interestsHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20,
