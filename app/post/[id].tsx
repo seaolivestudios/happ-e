@@ -27,11 +27,14 @@ type DetailComment = {
 type DetailPost = {
   id: string;
   type: 'image' | 'video' | 'inspire';
+  user_id: string | null;
   name: string;
   handle: string;
+  avatar_url: string | null;
   text: string;
   image_url: string | null;
   video_url: string | null;
+  widescreen: boolean;
   author_quote: string | null;
   category: string | null;
   smile_count: number;
@@ -70,11 +73,14 @@ export default function PostDetailScreen() {
         setPost({
           id: String(p.id),
           type: p.type === 'video' || p.type === 'inspire' ? p.type : 'image',
+          user_id: p.user_id ? String(p.user_id) : null,
           name: p.name ?? '',
           handle: p.handle ?? '',
+          avatar_url: p.avatar_url ?? null,
           text: p.text ?? '',
           image_url: p.image_url ?? null,
           video_url: p.video_url ?? null,
+          widescreen: p.widescreen === true,
           author_quote: p.author_quote ?? null,
           category: p.category ?? null,
           smile_count: parseInt(String(p.smile_count ?? 0), 10) || 0,
@@ -171,10 +177,17 @@ export default function PostDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
 
         {/* Author row */}
-        <View style={styles.authorRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarLetter}</Text>
-          </View>
+        <Pressable
+          style={styles.authorRow}
+          onPress={() => post.user_id && router.push(`/user/${post.user_id}` as any)}
+        >
+          {post.avatar_url ? (
+            <Image source={{ uri: post.avatar_url }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarLetter}</Text>
+            </View>
+          )}
           <View style={styles.authorInfo}>
             <Text style={styles.authorName}>{post.name}</Text>
             <Text style={styles.authorHandle}>{post.handle}</Text>
@@ -184,7 +197,7 @@ export default function PostDetailScreen() {
               <Text style={styles.categoryText}>{post.category}</Text>
             </View>
           ) : null}
-        </View>
+        </Pressable>
 
         {/* Media */}
         {post.type === 'inspire' ? (
@@ -198,14 +211,18 @@ export default function PostDetailScreen() {
         ) : post.type === 'video' && post.video_url ? (
           <Video
             source={{ uri: post.video_url }}
-            style={styles.media}
+            style={[styles.media, post.widescreen ? styles.mediaWide : styles.mediaPortrait]}
             resizeMode={ResizeMode.COVER}
             shouldPlay={false}
             isLooping
             useNativeControls
           />
         ) : post.image_url ? (
-          <Image source={{ uri: post.image_url }} style={styles.media} resizeMode="cover" />
+          <Image
+            source={{ uri: post.image_url }}
+            style={[styles.media, post.widescreen ? styles.mediaWide : styles.mediaPortrait]}
+            resizeMode="cover"
+          />
         ) : null}
 
         {/* Caption */}
@@ -291,13 +308,16 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 16 },
   authorRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
+  avatarImg: { width: 44, height: 44, borderRadius: 22 },
   avatarText: { fontSize: 18, fontWeight: '700', color: '#000000' },
   authorInfo: { flex: 1 },
   authorName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   authorHandle: { fontSize: 13, color: '#888888', marginTop: 1 },
   categoryBadge: { backgroundColor: '#111111', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#333333' },
   categoryText: { fontSize: 12, color: '#FFC300', fontWeight: '600' },
-  media: { width: '100%', aspectRatio: 4 / 5 },
+  media: { width: '100%' },
+  mediaPortrait: { aspectRatio: 4 / 5 },
+  mediaWide: { aspectRatio: 16 / 9 },
   inspireCard: { backgroundColor: '#111111', padding: 32, alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#222222' },
   inspireLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 2, marginBottom: 16 },
   inspireText: { fontSize: 20, color: '#FFFFFF', lineHeight: 30, fontStyle: 'italic', textAlign: 'center' },

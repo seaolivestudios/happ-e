@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { api } from '../api';
 import { getToken } from '../auth';
-import { getEmojiByLabel } from '../interests';
+import { INTEREST_CATEGORIES, getEmojiByLabel } from '../interests';
 
 type User = {
   id: string;
@@ -35,24 +35,76 @@ type DiscoverPost = {
 
 type TabKey = 'discover' | 'people' | 'categories';
 
-const CATEGORIES = [
-  { label: 'Woodworking', emoji: '🪵' },
-  { label: 'Photography', emoji: '📷' },
-  { label: 'Fishing', emoji: '🎣' },
-  { label: 'Painting', emoji: '🎨' },
-  { label: 'Outdoors', emoji: '🏕️' },
-  { label: 'Music', emoji: '🎸' },
-  { label: 'Cooking', emoji: '🍳' },
-  { label: 'Gardening', emoji: '🌱' },
-  { label: 'Pottery', emoji: '🏺' },
-  { label: 'Videography', emoji: '🎬' },
-  { label: 'Cycling', emoji: '🚴' },
-  { label: 'Running', emoji: '🏃' },
-  { label: 'Hiking', emoji: '⛰️' },
-  { label: 'Surfing', emoji: '🏄' },
-  { label: 'Drawing', emoji: '✏️' },
-  { label: 'Knitting', emoji: '🧶' },
-  { label: 'Sculpting', emoji: '🗿' },
+// Extra post categories not in INTEREST_CATEGORIES
+const EXTRA_CATEGORIES: { heading: string; items: { label: string; emoji: string }[] }[] = [
+  {
+    heading: 'Sports',
+    items: [
+      { label: 'Mountain Biking', emoji: '🚵' },
+      { label: 'Rock Climbing', emoji: '🧗' },
+      { label: 'Sailing', emoji: '⛵' },
+      { label: 'Skateboarding', emoji: '🛹' },
+      { label: 'Snowboarding', emoji: '🏂' },
+      { label: 'Swimming', emoji: '🏊' },
+      { label: 'Wrestling', emoji: '🤼' },
+    ],
+  },
+  {
+    heading: 'Art & Craft',
+    items: [
+      { label: 'Architecture', emoji: '🏛️' },
+      { label: 'Art', emoji: '🎨' },
+      { label: 'Blacksmithing', emoji: '⚒️' },
+      { label: 'Calligraphy', emoji: '✒️' },
+      { label: 'Candle Making', emoji: '🕯️' },
+      { label: 'Ceramics', emoji: '🏺' },
+      { label: 'Digital Art', emoji: '🖥️' },
+      { label: 'Embroidery', emoji: '🧵' },
+      { label: 'Home Improvement', emoji: '🔨' },
+      { label: 'Illustration', emoji: '🖊️' },
+      { label: 'Metalwork', emoji: '⚙️' },
+      { label: 'Printmaking', emoji: '🖨️' },
+      { label: 'Street Art', emoji: '🏙️' },
+      { label: 'Weaving', emoji: '🧺' },
+    ],
+  },
+  {
+    heading: 'Music',
+    items: [
+      { label: 'Music', emoji: '🎵' },
+      { label: 'Vinyl & Records', emoji: '💿' },
+    ],
+  },
+  {
+    heading: 'Food & Drink',
+    items: [
+      { label: 'Baking', emoji: '🥖' },
+      { label: 'BBQ', emoji: '🔥' },
+      { label: 'Cocktails', emoji: '🍹' },
+      { label: 'Coffee', emoji: '☕' },
+      { label: 'Smoking Meats', emoji: '🥩' },
+      { label: 'Wine', emoji: '🍷' },
+    ],
+  },
+  {
+    heading: 'Lifestyle',
+    items: [
+      { label: 'Astronomy', emoji: '🔭' },
+      { label: 'Bird Watching', emoji: '🦅' },
+      { label: 'Boating', emoji: '⛵' },
+      { label: 'Cars', emoji: '🚗' },
+      { label: 'Fitness', emoji: '💪' },
+      { label: 'Foraging', emoji: '🍄' },
+      { label: 'Journaling', emoji: '📓' },
+      { label: 'Meditation', emoji: '🌿' },
+      { label: 'Motorcycles', emoji: '🏍️' },
+      { label: 'Outdoors', emoji: '🏕️' },
+      { label: 'Reading', emoji: '📚' },
+      { label: 'Travel', emoji: '✈️' },
+      { label: 'Volunteering', emoji: '🤝' },
+      { label: 'Writing', emoji: '📝' },
+    ],
+  },
 ];
 
 function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -394,12 +446,30 @@ export default function SearchScreen() {
         ) : (
           <View style={styles.searchResults}>
             <Text style={styles.sectionLabel}>Browse Categories</Text>
-            {CATEGORIES.map(cat => (
-              <Pressable key={cat.label} style={styles.categoryRow} onPress={() => handleCategoryPress(cat.label)}>
-                <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-                <Text style={styles.categoryLabel}>{cat.label}</Text>
-                <Text style={styles.categoryArrow}>›</Text>
-              </Pressable>
+            {/* Sections from interest categories */}
+            {INTEREST_CATEGORIES.map(section => (
+              <View key={section.heading}>
+                <Text style={styles.catSectionHeading}>{section.heading}</Text>
+                {section.items.map(item => (
+                  <Pressable key={item.label} style={styles.categoryRow} onPress={() => handleCategoryPress(item.label)}>
+                    <Text style={styles.categoryEmoji}>{item.emoji}</Text>
+                    <Text style={styles.categoryLabel}>{item.label}</Text>
+                    <Text style={styles.categoryArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))}
+            {/* Extra post-specific categories */}
+            {EXTRA_CATEGORIES.map(section => (
+              <View key={section.heading + '_extra'}>
+                {section.items.map(item => (
+                  <Pressable key={item.label} style={styles.categoryRow} onPress={() => handleCategoryPress(item.label)}>
+                    <Text style={styles.categoryEmoji}>{item.emoji}</Text>
+                    <Text style={styles.categoryLabel}>{item.label}</Text>
+                    <Text style={styles.categoryArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
             ))}
           </View>
         )}
@@ -448,6 +518,7 @@ const styles = StyleSheet.create({
   followingBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FFC300' },
   followBtnText: { fontSize: 12, fontWeight: '700', color: '#000000' },
   followingBtnText: { color: '#FFC300' },
+  catSectionHeading: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 1.5, marginTop: 20, marginBottom: 4 },
   categoryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A', gap: 14 },
   categoryEmoji: { fontSize: 28 },
   categoryLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
