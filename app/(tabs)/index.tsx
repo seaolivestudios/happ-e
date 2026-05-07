@@ -128,6 +128,7 @@ export default function HomeScreen() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string } | null>(null);
@@ -192,25 +193,6 @@ export default function HomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (menuOpen) {
-      Animated.spring(menuAnim, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
-      return;
-    }
-
-    Animated.spring(menuAnim, {
-      toValue: -MENU_WIDTH,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
-  }, [menuAnim, menuOpen]);
-
   // Scroll portrait feed to keep current post visible when posts load
   useEffect(() => {
     if (!currentPostId) return;
@@ -230,23 +212,39 @@ export default function HomeScreen() {
   }, [currentPostId, portraitCardEstimatedHeight, posts]);
 
   const openMenu = useCallback(() => {
+    menuAnim.setValue(-MENU_WIDTH);
+    setMenuMounted(true);
     setMenuOpen(true);
-  }, []);
+    requestAnimationFrame(() => {
+      Animated.spring(menuAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    });
+  }, [menuAnim]);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
-  }, []);
+    Animated.spring(menuAnim, {
+      toValue: -MENU_WIDTH,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start(() => setMenuMounted(false));
+  }, [menuAnim]);
 
   const navigateFromMenu = useCallback((path: Parameters<typeof router.push>[0]) => {
-    setMenuOpen(false);
+    closeMenu();
     requestAnimationFrame(() => {
       router.push(path);
     });
-  }, []);
+  }, [closeMenu]);
 
   const handleSignOut = useCallback(async () => {
     try {
-      setMenuOpen(false);
+      closeMenu();
       await clearSession();
       router.replace('/login');
     } catch (error) {
@@ -578,86 +576,88 @@ export default function HomeScreen() {
         </ScrollView>
       )}
 
-      {menuOpen ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close menu"
-          style={styles.menuOverlay}
-          onPress={closeMenu}
-        />
-      ) : null}
-
-      <Animated.View
-        style={[styles.menu, { transform: [{ translateX: menuAnim }], pointerEvents: menuOpen ? 'auto' : 'none' }]}
-      >
-        <View style={styles.menuHeader}>
-          <Image
-            source={require('../../assets/images/Logo v_1.png')}
-            style={styles.menuLogo}
-            resizeMode="contain"
-          />
+      {menuMounted ? (
+        <>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close menu"
-            hitSlop={10}
+            style={styles.menuOverlay}
             onPress={closeMenu}
+          />
+
+          <Animated.View
+            style={[styles.menu, { transform: [{ translateX: menuAnim }] }]}
           >
-            <Ionicons name="close" size={24} color="#888888" />
-          </Pressable>
-        </View>
+            <View style={styles.menuHeader}>
+              <Image
+                source={require('../../assets/images/Logo v_1.png')}
+                style={styles.menuLogo}
+                resizeMode="contain"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+                hitSlop={10}
+                onPress={closeMenu}
+              >
+                <Ionicons name="close" size={24} color="#888888" />
+              </Pressable>
+            </View>
 
-        <View style={styles.menuUserRow}>
-          <View style={styles.menuAvatar}>
-            <Text style={styles.menuAvatarText}>
-              {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
-            </Text>
-          </View>
-          <View>
-            <Text style={styles.menuName}>{currentUser?.name ?? 'User'}</Text>
-            <Text style={styles.menuHandle}>{currentUser?.handle ? `@${currentUser.handle}` : currentUser?.email ?? ''}</Text>
-          </View>
-        </View>
+            <View style={styles.menuUserRow}>
+              <View style={styles.menuAvatar}>
+                <Text style={styles.menuAvatarText}>
+                  {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
+                </Text>
+              </View>
+              <View>
+                <Text style={styles.menuName}>{currentUser?.name ?? 'User'}</Text>
+                <Text style={styles.menuHandle}>{currentUser?.handle ? `@${currentUser.handle}` : currentUser?.email ?? ''}</Text>
+              </View>
+            </View>
 
-        <View style={styles.menuDivider} />
+            <View style={styles.menuDivider} />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          style={styles.menuItem}
-          onPress={() => navigateFromMenu('/(tabs)/profile')}
-        >
-          <Ionicons name="person-outline" size={22} color="#FFC300" />
-          <Text style={styles.menuItemText}>Profile</Text>
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+              style={styles.menuItem}
+              onPress={() => navigateFromMenu('/(tabs)/profile')}
+            >
+              <Ionicons name="person-outline" size={22} color="#FFC300" />
+              <Text style={styles.menuItemText}>Profile</Text>
+            </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          style={styles.menuItem}
-          onPress={() => navigateFromMenu('/(tabs)/settings')}
-        >
-          <Ionicons name="settings-outline" size={22} color="#FFC300" />
-          <Text style={styles.menuItemText}>Settings</Text>
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              style={styles.menuItem}
+              onPress={() => navigateFromMenu('/(tabs)/settings')}
+            >
+              <Ionicons name="settings-outline" size={22} color="#FFC300" />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </Pressable>
 
-        <View style={styles.menuDivider} />
+            <View style={styles.menuDivider} />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          style={styles.menuItem}
-          onPress={() => {
-            void handleSignOut();
-          }}
-        >
-          <Ionicons name="log-out-outline" size={22} color="#FF4444" />
-          <Text style={[styles.menuItemText, styles.menuSignOut]}>Sign Out</Text>
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+              style={styles.menuItem}
+              onPress={() => {
+                void handleSignOut();
+              }}
+            >
+              <Ionicons name="log-out-outline" size={22} color="#FF4444" />
+              <Text style={[styles.menuItemText, styles.menuSignOut]}>Sign Out</Text>
+            </Pressable>
 
-        <View style={styles.menuFooter}>
-          <Text style={styles.menuFooterText}>No ads · No bots · No noise</Text>
-        </View>
-      </Animated.View>
+            <View style={styles.menuFooter}>
+              <Text style={styles.menuFooterText}>No ads · No bots · No noise</Text>
+            </View>
+          </Animated.View>
+        </>
+      ) : null}
 
       {commentVisible ? (
         <>
