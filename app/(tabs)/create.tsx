@@ -163,7 +163,7 @@ export default function CreateScreen() {
       const result = await api.createPost(payload, token ?? '');
       if (result.success || result.post) {
         resetAll();
-        router.replace('/(tabs)' as any);
+        router.replace('/(tabs)/index' as any);
       } else {
         Alert.alert('Error', result.error || 'Something went wrong.');
       }

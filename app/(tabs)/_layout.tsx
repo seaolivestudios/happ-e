@@ -18,6 +18,9 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          unmountOnBlur: true,
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size ?? 24} color={color} />,
         }}
       />
@@ -26,6 +29,9 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Connect',
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          unmountOnBlur: true,
           tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size ?? 24} color={color} />,
         }}
       />
@@ -50,6 +56,9 @@ export default function TabLayout() {
         name="search"
         options={{
           title: 'Discover',
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          unmountOnBlur: true,
           tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size ?? 24} color={color} />,
         }}
       />
@@ -58,6 +67,9 @@ export default function TabLayout() {
         name="sparks"
         options={{
           title: 'Sparks',
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          unmountOnBlur: true,
           tabBarIcon: ({ color, size }) => <Ionicons name="flash" size={size ?? 24} color={color} />,
         }}
       />

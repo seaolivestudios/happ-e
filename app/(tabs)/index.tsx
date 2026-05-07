@@ -587,25 +587,33 @@ export default function HomeScreen() {
 
             {post.type === 'video' && post.video ? (
               <View style={styles.videoContainer}>
-                <Video
-                  source={{ uri: post.video }}
-                  style={styles.cardMedia}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={currentPostId === post.id}
-                  isMuted={isMuted}
-                  isLooping
-                />
-                <Pressable
-                  style={styles.muteBtn}
-                  onPress={() => setIsMuted(m => !m)}
-                  hitSlop={10}
-                >
-                  <Ionicons
-                    name={isMuted ? 'volume-mute' : 'volume-high'}
-                    size={16}
-                    color="#FFFFFF"
+                {currentPostId === post.id ? (
+                  <Video
+                    source={{ uri: post.video }}
+                    style={styles.cardMedia}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isMuted={isMuted}
+                    isLooping
                   />
-                </Pressable>
+                ) : (
+                  <View style={[styles.cardMedia, styles.videoPlaceholder]}>
+                    <Ionicons name="play-circle-outline" size={44} color="rgba(255,255,255,0.4)" />
+                  </View>
+                )}
+                {currentPostId === post.id && (
+                  <Pressable
+                    style={styles.muteBtn}
+                    onPress={() => setIsMuted(m => !m)}
+                    hitSlop={10}
+                  >
+                    <Ionicons
+                      name={isMuted ? 'volume-mute' : 'volume-high'}
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                  </Pressable>
+                )}
                 {rotateBadge}
               </View>
             ) : post.image ? (
@@ -1036,6 +1044,11 @@ const styles = StyleSheet.create({
   videoContainer: {
     flex: 1,
     position: 'relative',
+  },
+  videoPlaceholder: {
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardMedia: {
     flex: 1,
