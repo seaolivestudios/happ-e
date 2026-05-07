@@ -144,7 +144,8 @@ function ImageCard({ uri }: { uri: string }) {
 }
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const commentDrawerHiddenX = width;
   const [feedHeight, setFeedHeight] = useState(0);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -169,6 +170,17 @@ export default function HomeScreen() {
     () => posts.find((post) => post.id === commentPostId) ?? null,
     [posts, commentPostId]
   );
+
+  // In landscape, only show widescreen posts
+  const displayPosts = useMemo(
+    () => isLandscape ? posts.filter(p => p.widescreen) : posts,
+    [isLandscape, posts]
+  );
+
+  // Reset to top when orientation changes
+  useEffect(() => {
+    portraitScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [isLandscape]);
 
   useEffect(() => {
     if (!commentVisible) {
@@ -500,10 +512,21 @@ export default function HomeScreen() {
   const renderVerticalCard = useCallback(
     (post: Post) => {
       const cardHeight = feedHeight > 0 ? { height: feedHeight } : { flex: 1 };
+      const cardOverride = isLandscape
+        ? { marginHorizontal: 0, borderRadius: 0, borderWidth: 0 }
+        : {};
+
+      // Rotate hint: shown on widescreen posts in portrait mode only
+      const rotateBadge = post.widescreen && !isLandscape ? (
+        <View style={styles.rotateBadge} pointerEvents="none">
+          <Ionicons name="phone-landscape-outline" size={13} color="#FFFFFF" />
+          <Text style={styles.rotateBadgeText}>Rotate</Text>
+        </View>
+      ) : null;
 
       if (post.type === 'inspire') {
         return (
-          <View key={post.id} style={[styles.card, cardHeight]}>
+          <View key={post.id} style={[styles.card, cardHeight, cardOverride]}>
             <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
               <View style={[styles.cardHeader, styles.cardHeaderSystem]}>
                 <SystemAvatar />
@@ -531,7 +554,7 @@ export default function HomeScreen() {
       const system = isSystemPost(post);
 
       return (
-        <View key={post.id} style={[styles.card, cardHeight]}>
+        <View key={post.id} style={[styles.card, cardHeight, cardOverride]}>
           <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
             <View style={[styles.cardHeader, system && styles.cardHeaderSystem]}>
               <Pressable onPress={() => !system && post.userId && router.push(`/user/${post.userId}` as any)}>
@@ -583,9 +606,13 @@ export default function HomeScreen() {
                     color="#FFFFFF"
                   />
                 </Pressable>
+                {rotateBadge}
               </View>
             ) : post.image ? (
-              <ImageCard uri={post.image} />
+              <View style={styles.imageWrapper}>
+                <ImageCard uri={post.image} />
+                {rotateBadge}
+              </View>
             ) : null}
 
             {post.text ? (
@@ -596,12 +623,18 @@ export default function HomeScreen() {
         </View>
       );
     },
-    [feedHeight, renderActions]
+    [feedHeight, isLandscape, isMuted, currentPostId, renderActions]
   );
 
   return (
     <View style={styles.container}>
-<View style={styles.header}>
+      {isLandscape && (
+        <View style={styles.landscapeBanner} pointerEvents="none">
+          <Ionicons name="phone-landscape-outline" size={14} color="#FFC300" />
+          <Text style={styles.landscapeBannerText}>Widescreen mode</Text>
+        </View>
+      )}
+<View style={[styles.header, isLandscape && { display: 'none' }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open menu"
@@ -639,8 +672,15 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           ref={portraitScrollRef}
-          data={posts}
+          data={displayPosts}
           keyExtractor={(item) => item.id}
+          ListEmptyComponent={isLandscape ? (
+            <View style={styles.landscapeEmpty}>
+              <Ionicons name="phone-landscape-outline" size={48} color="#FFC300" />
+              <Text style={styles.landscapeEmptyTitle}>No widescreen posts yet</Text>
+              <Text style={styles.landscapeEmptyText}>Rotate back to portrait to see all posts</Text>
+            </View>
+          ) : null}
           renderItem={({ item }) => renderVerticalCard(item)}
           style={styles.feed}
           contentContainerStyle={styles.feedContent}
@@ -1273,4 +1313,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Widescreen rotate hint
+  imageWrapper: { flex: 1 },
+  rotateBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  rotateBadgeText: { fontSize: 11, color: '#FFFFFF', fontWeight: '600' },
+
+  // Landscape mode
+  landscapeBanner: {
+    position: 'absolute',
+    top: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    zIndex: 5,
+  },
+  landscapeBannerText: { fontSize: 12, color: '#FFC300', fontWeight: '600' },
+  landscapeEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+    gap: 14,
+  },
+  landscapeEmptyTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  landscapeEmptyText: { fontSize: 14, color: '#888888', textAlign: 'center' },
 });
