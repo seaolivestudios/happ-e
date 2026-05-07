@@ -22,10 +22,6 @@ const HappETheme = {
   },
 };
 
-export const unstable_settings = {
-  anchor: 'login',
-};
-
 export default function RootLayout() {
   return (
     <ThemeProvider value={HappETheme}>
