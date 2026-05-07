@@ -89,12 +89,30 @@ function normalizePost(raw: ApiPost): Post {
   };
 }
 
+const SYSTEM_HANDLES = new Set(['happe', 'happ_e', 'happ-e', 'admin', 'system']);
+
+function isSystemPost(post: Post): boolean {
+  return post.type === 'inspire' || SYSTEM_HANDLES.has(post.user.toLowerCase());
+}
+
 function getDisplayName(post: Post): string {
   return post.name || post.user || 'User';
 }
 
 function getAvatarLetter(post: Post): string {
   return getDisplayName(post).charAt(0).toUpperCase() || 'U';
+}
+
+function SystemAvatar() {
+  return (
+    <View style={styles.systemAvatarRing}>
+      <Image
+        source={require('../../assets/images/Logo v_1.png')}
+        style={styles.systemAvatarLogo}
+        resizeMode="contain"
+      />
+    </View>
+  );
 }
 
 function ImageCard({ uri }: { uri: string }) {
@@ -460,8 +478,18 @@ export default function HomeScreen() {
         return (
           <View key={post.id} style={[styles.card, cardHeight]}>
             <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
+              <View style={[styles.cardHeader, styles.cardHeaderSystem]}>
+                <SystemAvatar />
+                <View style={styles.userInfo}>
+                  <View style={styles.systemNameRow}>
+                    <Text style={styles.systemName}>Happ-E</Text>
+                    <View style={styles.systemBadge}>
+                      <Text style={styles.systemBadgeText}>✦ Official</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
               <View style={styles.inspireInner}>
-                <Text style={styles.inspireLabel}>✦ Inspire</Text>
                 <Text style={styles.inspireText}>{post.text}</Text>
                 {post.author ? (
                   <Text style={styles.inspireAuthor}>— {post.author}</Text>
@@ -473,16 +501,33 @@ export default function HomeScreen() {
         );
       }
 
+      const system = isSystemPost(post);
+
       return (
         <View key={post.id} style={[styles.card, cardHeight]}>
           <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
-            <View style={styles.cardHeader}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
-              </View>
+            <View style={[styles.cardHeader, system && styles.cardHeaderSystem]}>
+              {system ? (
+                <SystemAvatar />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
+                </View>
+              )}
               <View style={styles.userInfo}>
-                <Text style={styles.cardUser}>{post.name || 'Unknown'}</Text>
-                <Text style={styles.cardHandle}>{post.user}</Text>
+                {system ? (
+                  <View style={styles.systemNameRow}>
+                    <Text style={styles.systemName}>Happ-E</Text>
+                    <View style={styles.systemBadge}>
+                      <Text style={styles.systemBadgeText}>✦ Official</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.cardUser}>{post.name || 'Unknown'}</Text>
+                    <Text style={styles.cardHandle}>{post.user}</Text>
+                  </>
+                )}
               </View>
             </View>
 
@@ -809,6 +854,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     gap: 10,
+  },
+  cardHeaderSystem: {
+    backgroundColor: '#000000',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFC300',
+  },
+  systemAvatarRing: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#000000',
+    borderWidth: 1.5,
+    borderColor: '#FFC300',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  systemAvatarLogo: {
+    width: 28,
+    height: 28,
+  },
+  systemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  systemName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFC300',
+  },
+  systemBadge: {
+    backgroundColor: '#FFC300',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  systemBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#000000',
+    letterSpacing: 0.5,
   },
   avatar: {
     width: 36,
