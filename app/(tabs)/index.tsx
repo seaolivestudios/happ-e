@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,8 +18,7 @@ import {
   TextInput,
   useWindowDimensions,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+  type ViewToken,
 } from 'react-native';
 import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
@@ -146,7 +146,8 @@ export default function HomeScreen() {
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
-  const portraitScrollRef = useRef<ScrollView>(null);
+  const portraitScrollRef = useRef<FlatList<Post>>(null);
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const commentPost = useMemo(
     () => posts.find((post) => post.id === commentPostId) ?? null,
@@ -204,23 +205,6 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Scroll portrait feed to keep current post visible when posts load
-  useEffect(() => {
-    if (!currentPostId) return;
-
-    const index = posts.findIndex((post) => post.id === currentPostId);
-    const targetIndex = index >= 0 ? index : 0;
-    const targetY = targetIndex * (portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM);
-
-    const frame = requestAnimationFrame(() => {
-      portraitScrollRef.current?.scrollTo({
-        y: targetY,
-        animated: false,
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [currentPostId, portraitCardEstimatedHeight, posts]);
 
   const openMenu = useCallback(() => {
     menuAnim.setValue(-MENU_WIDTH);
@@ -405,19 +389,13 @@ export default function HomeScreen() {
     []
   );
 
-  const handlePortraitScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offsetY = Math.max(0, event.nativeEvent.contentOffset.y);
-      const index = Math.round(
-        offsetY / (portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM)
-      );
-      const clampedIndex = Math.min(Math.max(index, 0), posts.length - 1);
-
-      if (posts[clampedIndex]) {
-        setCurrentPostId(posts[clampedIndex].id);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].item) {
+        setCurrentPostId((viewableItems[0].item as Post).id);
       }
     },
-    [portraitCardEstimatedHeight, posts]
+    []
   );
 
   const renderActions = useCallback(
@@ -578,15 +556,20 @@ export default function HomeScreen() {
           <Text style={styles.loadingText}>Loading posts...</Text>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
           ref={portraitScrollRef}
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => renderVerticalCard(item)}
           style={styles.feed}
-          onScroll={handlePortraitScroll}
-          scrollEventThrottle={16}
           contentContainerStyle={[styles.feedContent, { paddingBottom: tabBarHeight }]}
-        >
-          {posts.map(renderVerticalCard)}
-        </ScrollView>
+          snapToInterval={portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM}
+          decelerationRate="fast"
+          snapToAlignment="start"
+          showsVerticalScrollIndicator={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
       )}
 
       {menuMounted ? (
