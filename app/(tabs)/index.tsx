@@ -32,6 +32,7 @@ type Comment = {
 
 type ApiPost = {
   id: string | number;
+  user_id?: string | number | null;
   handle?: string | null;
   name?: string | null;
   text?: string | null;
@@ -63,6 +64,7 @@ type Post = {
   category: string | null;
   createdAt: string;
   avatarUrl: string | null;
+  userId: string;
 };
 
 const HEADER_HEIGHT = 75;
@@ -90,6 +92,7 @@ function normalizePost(raw: ApiPost): Post {
     category: raw.category ?? null,
     createdAt: raw.created_at ?? '',
     avatarUrl: raw.avatar_url ?? null,
+    userId: String(raw.user_id ?? ''),
   };
 }
 
@@ -476,7 +479,8 @@ export default function HomeScreen() {
             style={styles.actionBtn}
             onPress={() => {
               void Share.share({
-                message: `Check out this post on Happ-E!\nhttps://happe-backend-production.up.railway.app/posts/${post.id}`,
+                message: `Check out this post on Happ-E!`,
+                url: `happyapp://post/${post.id}`,
               });
             }}
           >
@@ -529,16 +533,18 @@ export default function HomeScreen() {
         <View key={post.id} style={[styles.card, cardHeight]}>
           <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
             <View style={[styles.cardHeader, system && styles.cardHeaderSystem]}>
-              {system ? (
-                <SystemAvatar />
-              ) : post.avatarUrl ? (
-                <Image source={{ uri: post.avatarUrl }} style={styles.avatarImg} />
-              ) : (
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
-                </View>
-              )}
-              <View style={styles.userInfo}>
+              <Pressable onPress={() => !system && post.userId && router.push(`/user/${post.userId}` as any)}>
+                {system ? (
+                  <SystemAvatar />
+                ) : post.avatarUrl ? (
+                  <Image source={{ uri: post.avatarUrl }} style={styles.avatarImg} />
+                ) : (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
+                  </View>
+                )}
+              </Pressable>
+              <Pressable style={styles.userInfo} onPress={() => !system && post.userId && router.push(`/user/${post.userId}` as any)}>
                 {system ? (
                   <View style={styles.systemNameRow}>
                     <Text style={styles.systemName}>Happ-E</Text>
@@ -552,7 +558,7 @@ export default function HomeScreen() {
                     <Text style={styles.cardHandle}>{post.user}</Text>
                   </>
                 )}
-              </View>
+              </Pressable>
             </View>
 
             {post.type === 'video' && post.video ? (
@@ -560,7 +566,8 @@ export default function HomeScreen() {
                 source={{ uri: post.video }}
                 style={styles.cardMedia}
                 resizeMode={ResizeMode.COVER}
-                shouldPlay={false}
+                shouldPlay={currentPostId === post.id}
+                isMuted
                 isLooping
                 useNativeControls
               />

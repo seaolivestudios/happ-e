@@ -143,6 +143,18 @@ export const api = {
     return response.json();
   },
 
+  getUser: async (userId: string) => {
+    const response = await fetch(`${API_URL}/users/${userId}`);
+    return response.json();
+  },
+
+  checkFollow: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/follows/${userId}/check`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
   follow: async (userId: string, token: string) => {
     const response = await fetch(`${API_URL}/follows/${userId}`, {
       method: 'POST',
