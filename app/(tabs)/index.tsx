@@ -531,6 +531,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <Text style={{ color: '#FFC300', fontSize: 10, textAlign: 'center', paddingTop: 4 }}>v-canary-may7</Text>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
