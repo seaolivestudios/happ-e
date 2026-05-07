@@ -3,6 +3,8 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { useEffect } from 'react';
+import { registerForPushNotifications, setupNotificationResponseListener } from './push-service';
 
 const HappETheme = {
   dark: true,
@@ -23,6 +25,12 @@ const HappETheme = {
 };
 
 export default function RootLayout() {
+  useEffect(() => {
+    void registerForPushNotifications();
+    const unsub = setupNotificationResponseListener();
+    return unsub;
+  }, []);
+
   return (
     <ThemeProvider value={HappETheme}>
       <Stack initialRouteName="login">

@@ -86,6 +86,15 @@ export const api = {
     return response.json();
   },
 
+  registerPushToken: async (pushToken: string, token: string) => {
+    const response = await fetch(`${API_URL}/auth/push-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pushToken }),
+    });
+    return response.json();
+  },
+
   changePassword: async (currentPassword: string, newPassword: string, token: string) => {
     const response = await fetch(`${API_URL}/auth/change-password`, {
       method: 'POST',

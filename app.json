@@ -15,7 +15,8 @@
     "ITSAppUsesNonExemptEncryption": false,
     "NSPhotoLibraryUsageDescription": "Happ-E needs access to your photos so you can share your creativity.",
     "NSCameraUsageDescription": "Happ-E needs access to your camera so you can capture and share moments.",
-    "NSMicrophoneUsageDescription": "Happ-E needs microphone access for video recording."
+    "NSMicrophoneUsageDescription": "Happ-E needs microphone access for video recording.",
+    "NSUserNotificationsUsageDescription": "Happ-E sends you notifications when someone smiles or comments on your posts."
   }
 },
     "android": {
@@ -32,6 +33,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/App_Icon.png",
+          "color": "#FFC300",
+          "sounds": []
+        }
+      ],
       [
         "expo-splash-screen",
         {
