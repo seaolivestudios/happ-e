@@ -49,6 +49,11 @@ export const api = {
     return response.json();
   },
 
+  getPostsByCategory: async (category: string) => {
+    const response = await fetch(`${API_URL}/posts?category=${encodeURIComponent(category)}`);
+    return response.json();
+  },
+
   getPost: async (id: string) => {
     const response = await fetch(`${API_URL}/posts/${id}`);
     return response.json();

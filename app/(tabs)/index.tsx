@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -155,6 +156,8 @@ export default function HomeScreen() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
@@ -194,42 +197,28 @@ export default function HomeScreen() {
     void loadUser();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadPosts() {
-      setIsLoadingPosts(true);
-
-      try {
-        const token = await getToken();
-        const result = await api.getPosts(token || '');
-
-        if (!active) return;
-
-        const nextPosts: Post[] = Array.isArray(result?.posts)
-          ? result.posts.map((raw: ApiPost) => normalizePost(raw))
-          : [];
-
-        setPosts(nextPosts);
-
-        if (nextPosts.length > 0) {
-          setCurrentPostId((prev) => prev || nextPosts[0].id);
-        }
-      } catch (error) {
-        console.log('Could not load posts:', error);
-      } finally {
-        if (active) {
-          setIsLoadingPosts(false);
-        }
+  const loadPosts = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setIsLoadingPosts(true);
+    try {
+      const token = await getToken();
+      const result = await api.getPosts(token || '');
+      const nextPosts: Post[] = Array.isArray(result?.posts)
+        ? result.posts.map((raw: ApiPost) => normalizePost(raw))
+        : [];
+      setPosts(nextPosts);
+      if (nextPosts.length > 0) {
+        setCurrentPostId((prev) => prev || nextPosts[0].id);
       }
+    } catch (error) {
+      console.log('Could not load posts:', error);
+    } finally {
+      setIsLoadingPosts(false);
+      setRefreshing(false);
     }
-
-    void loadPosts();
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  useEffect(() => { void loadPosts(); }, []);
 
 
   const openMenu = useCallback(() => {
@@ -279,6 +268,17 @@ export default function HomeScreen() {
       setCommentVisible(true);
       commentAnim.setValue(commentDrawerHiddenX);
       commentOpacity.setValue(0);
+
+      // Load real comments from API
+      void api.getPost(postId).then(result => {
+        if (result?.post?.comments) {
+          setPosts(prev => prev.map(p =>
+            p.id === postId
+              ? { ...p, comments: result.post.comments.map((c: any) => ({ user: c.handle || c.name, text: c.text })) }
+              : p
+          ));
+        }
+      });
 
       requestAnimationFrame(() => {
         Animated.parallel([
@@ -375,12 +375,13 @@ export default function HomeScreen() {
       const trimmed = text.trim();
       if (!trimmed) return;
 
+      const myHandle = currentUser?.handle || '@me';
       setPosts((prev) =>
         prev.map((post) =>
           post.id === id
             ? {
                 ...post,
-                comments: [...post.comments, { user: '@you', text: trimmed }],
+                comments: [...post.comments, { user: myHandle, text: trimmed }],
               }
             : post
         )
@@ -389,7 +390,7 @@ export default function HomeScreen() {
 
       try {
         const token = await getToken();
-        await api.commentPost(id, trimmed, '@you', token || '');
+        await api.commentPost(id, trimmed, myHandle, token || '');
       } catch (error) {
         console.log('Comment sync error:', error);
 
@@ -402,7 +403,7 @@ export default function HomeScreen() {
                     (comment, index, arr) =>
                       !(
                         index === arr.length - 1 &&
-                        comment.user === '@you' &&
+                        comment.user === myHandle &&
                         comment.text === trimmed
                       )
                   ),
@@ -562,15 +563,27 @@ export default function HomeScreen() {
             </View>
 
             {post.type === 'video' && post.video ? (
-              <Video
-                source={{ uri: post.video }}
-                style={styles.cardMedia}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay={currentPostId === post.id}
-                isMuted
-                isLooping
-                useNativeControls
-              />
+              <View style={styles.videoContainer}>
+                <Video
+                  source={{ uri: post.video }}
+                  style={styles.cardMedia}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={currentPostId === post.id}
+                  isMuted={isMuted}
+                  isLooping
+                />
+                <Pressable
+                  style={styles.muteBtn}
+                  onPress={() => setIsMuted(m => !m)}
+                  hitSlop={10}
+                >
+                  <Ionicons
+                    name={isMuted ? 'volume-mute' : 'volume-high'}
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                </Pressable>
+              </View>
             ) : post.image ? (
               <ImageCard uri={post.image} />
             ) : null}
@@ -635,6 +648,13 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void loadPosts(true)}
+              tintColor="#FFC300"
+            />
+          }
           onLayout={e => {
             const h = e.nativeEvent.layout.height;
             if (h > 0) setFeedHeight(h);
@@ -971,9 +991,24 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  videoContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   cardMedia: {
     flex: 1,
     width: '100%',
+  },
+  muteBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imagePlaceholder: {
     position: 'absolute',
