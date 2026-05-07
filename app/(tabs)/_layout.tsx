@@ -12,7 +12,6 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#888888',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
-        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
