@@ -1,39 +1,132 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { api } from '../api';
+import { clearSession, getToken, getUser } from '../auth';
+
+const NOTIF_PREFS_KEY = 'happe_notif_prefs';
+
+type NotifPrefs = {
+  push: boolean;
+  inspire: boolean;
+  comments: boolean;
+  likes: boolean;
+};
+
+const DEFAULT_PREFS: NotifPrefs = { push: true, inspire: true, comments: true, likes: true };
 
 export default function SettingsScreen() {
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [inspireNotifications, setInspireNotifications] = useState(true);
-  const [commentNotifications, setCommentNotifications] = useState(true);
-  const [likeNotifications, setLikeNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
-  const [widescreenHint, setWidescreenHint] = useState(true);
+  const [user, setUser] = useState<{ name: string; email: string; handle: string } | null>(null);
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
+
+  const [pwModalVisible, setPwModalVisible] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+
+  useEffect(() => {
+    getUser().then(u => { if (u) setUser(u); });
+    SecureStore.getItemAsync(NOTIF_PREFS_KEY).then(raw => {
+      if (raw) setPrefs(JSON.parse(raw));
+    });
+  }, []);
+
+  const savePref = (key: keyof NotifPrefs, value: boolean) => {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(next));
+  };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => router.replace('/login') },
-      ]
-    );
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await clearSession();
+          router.replace('/login');
+        },
+      },
+    ]);
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPw || !currentPw) return;
+    if (newPw !== confirmPw) {
+      Alert.alert('Error', 'New passwords do not match.');
+      return;
+    }
+    if (newPw.length < 8) {
+      Alert.alert('Error', 'New password must be at least 8 characters.');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      const token = await getToken();
+      const result = await api.changePassword(currentPw, newPw, token ?? '');
+      if (result.success) {
+        setPwModalVisible(false);
+        setCurrentPw('');
+        setNewPw('');
+        setConfirmPw('');
+        Alert.alert('Success', 'Your password has been updated.');
+      } else {
+        Alert.alert('Error', result.error ?? 'Could not update password.');
+      }
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Try again.');
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'This is permanent and cannot be undone. All your posts and data will be deleted.',
+      'This is permanent and cannot be undone. All your posts and data will be deleted. Enter your password to confirm.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => Alert.alert('Account Deleted', 'Your account has been deleted.') },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Confirm Password',
+              'Enter your password to delete your account.',
+              async (password) => {
+                if (!password) return;
+                try {
+                  const token = await getToken();
+                  const result = await api.deleteAccount(password, token ?? '');
+                  if (result.success) {
+                    await clearSession();
+                    router.replace('/login');
+                  } else {
+                    Alert.alert('Error', result.error ?? 'Could not delete account.');
+                  }
+                } catch {
+                  Alert.alert('Error', 'Something went wrong. Try again.');
+                }
+              },
+              'secure-text'
+            );
+          },
+        },
       ]
     );
-  };
-
-  const handleManageSubscription = () => {
-    Alert.alert('Subscription', 'You are on the Happ-E monthly plan at $4.99/month. Manage your subscription in your App Store settings.');
   };
 
   return (
@@ -55,15 +148,14 @@ export default function SettingsScreen() {
               <Text style={styles.verifiedBadge}>✦ Verified</Text>
             </View>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row} onPress={handleManageSubscription}>
+            <View style={styles.row}>
               <View>
-                <Text style={styles.rowLabel}>Subscription</Text>
-                <Text style={styles.rowSub}>Happ-E Monthly · $4.99/mo</Text>
+                <Text style={styles.rowLabel}>Email Address</Text>
+                <Text style={styles.rowSub}>{user?.email ?? '—'}</Text>
               </View>
-              <Text style={styles.rowArrow}>›</Text>
-            </TouchableOpacity>
+            </View>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => setPwModalVisible(true)}>
               <View>
                 <Text style={styles.rowLabel}>Change Password</Text>
                 <Text style={styles.rowSub}>Update your login password</Text>
@@ -73,8 +165,8 @@ export default function SettingsScreen() {
             <View style={styles.divider} />
             <TouchableOpacity style={styles.row}>
               <View>
-                <Text style={styles.rowLabel}>Email Address</Text>
-                <Text style={styles.rowSub}>stephen@email.com</Text>
+                <Text style={styles.rowLabel}>Subscription</Text>
+                <Text style={styles.rowSub}>Happ-E Monthly · $4.99/mo</Text>
               </View>
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
@@ -90,8 +182,8 @@ export default function SettingsScreen() {
                 <Text style={styles.rowSub}>All app notifications</Text>
               </View>
               <Switch
-                value={pushNotifications}
-                onValueChange={setPushNotifications}
+                value={prefs.push}
+                onValueChange={v => savePref('push', v)}
                 trackColor={{ false: '#333333', true: '#FFC300' }}
                 thumbColor="#000000"
               />
@@ -103,8 +195,8 @@ export default function SettingsScreen() {
                 <Text style={styles.rowSub}>New quotes and clips</Text>
               </View>
               <Switch
-                value={inspireNotifications}
-                onValueChange={setInspireNotifications}
+                value={prefs.inspire}
+                onValueChange={v => savePref('inspire', v)}
                 trackColor={{ false: '#333333', true: '#FFC300' }}
                 thumbColor="#000000"
               />
@@ -116,8 +208,8 @@ export default function SettingsScreen() {
                 <Text style={styles.rowSub}>When someone comments</Text>
               </View>
               <Switch
-                value={commentNotifications}
-                onValueChange={setCommentNotifications}
+                value={prefs.comments}
+                onValueChange={v => savePref('comments', v)}
                 trackColor={{ false: '#333333', true: '#FFC300' }}
                 thumbColor="#000000"
               />
@@ -126,29 +218,11 @@ export default function SettingsScreen() {
             <View style={styles.switchRow}>
               <View>
                 <Text style={styles.rowLabel}>Likes</Text>
-                <Text style={styles.rowSub}>When someone likes your post</Text>
+                <Text style={styles.rowSub}>When someone smiles at your post</Text>
               </View>
               <Switch
-                value={likeNotifications}
-                onValueChange={setLikeNotifications}
-                trackColor={{ false: '#333333', true: '#FFC300' }}
-                thumbColor="#000000"
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Display</Text>
-          <View style={styles.card}>
-            <View style={styles.switchRow}>
-              <View>
-                <Text style={styles.rowLabel}>Widescreen Hint</Text>
-                <Text style={styles.rowSub}>Show rotate hint on eligible posts</Text>
-              </View>
-              <Switch
-                value={widescreenHint}
-                onValueChange={setWidescreenHint}
+                value={prefs.likes}
+                onValueChange={v => savePref('likes', v)}
                 trackColor={{ false: '#333333', true: '#FFC300' }}
                 thumbColor="#000000"
               />
@@ -229,11 +303,6 @@ export default function SettingsScreen() {
               <Text style={styles.rowLabel}>Version</Text>
               <Text style={styles.rowValue}>1.0.0 (Beta)</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Build</Text>
-              <Text style={styles.rowValue}>2026.04.21</Text>
-            </View>
           </View>
         </View>
 
@@ -248,6 +317,59 @@ export default function SettingsScreen() {
         <Text style={styles.footer}>Happ-E · Real people. Real moments. · v1.0.0</Text>
 
       </ScrollView>
+
+      <Modal visible={pwModalVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Current password"
+              placeholderTextColor="#666666"
+              secureTextEntry
+              value={currentPw}
+              onChangeText={setCurrentPw}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="New password"
+              placeholderTextColor="#666666"
+              secureTextEntry
+              value={newPw}
+              onChangeText={setNewPw}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm new password"
+              placeholderTextColor="#666666"
+              secureTextEntry
+              value={confirmPw}
+              onChangeText={setConfirmPw}
+            />
+
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, pwLoading && { opacity: 0.5 }]}
+              onPress={handleChangePassword}
+              disabled={pwLoading}
+            >
+              <Text style={styles.modalSaveBtnText}>{pwLoading ? 'Saving…' : 'Update Password'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => {
+                setPwModalVisible(false);
+                setCurrentPw('');
+                setNewPw('');
+                setConfirmPw('');
+              }}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -274,4 +396,12 @@ const styles = StyleSheet.create({
   deleteBtn: { marginHorizontal: 16, marginBottom: 8, backgroundColor: '#111111', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FF4444' },
   deleteText: { fontSize: 16, fontWeight: '700', color: '#FF4444' },
   footer: { fontSize: 11, color: '#333333', textAlign: 'center', padding: 20 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#111111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 2, borderTopColor: '#FFC300' },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 20 },
+  input: { backgroundColor: '#000000', borderRadius: 12, borderWidth: 1, borderColor: '#333333', padding: 14, color: '#FFFFFF', fontSize: 15, marginBottom: 12 },
+  modalSaveBtn: { backgroundColor: '#FFC300', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
+  modalSaveBtnText: { fontSize: 16, fontWeight: '700', color: '#000000' },
+  modalCancelBtn: { padding: 16, alignItems: 'center', marginTop: 4 },
+  modalCancelText: { fontSize: 15, color: '#888888' },
 });

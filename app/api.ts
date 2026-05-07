@@ -81,6 +81,24 @@ export const api = {
     return response.json();
   },
 
+  changePassword: async (currentPassword: string, newPassword: string, token: string) => {
+    const response = await fetch(`${API_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return response.json();
+  },
+
+  deleteAccount: async (password: string, token: string) => {
+    const response = await fetch(`${API_URL}/auth/account`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ password }),
+    });
+    return response.json();
+  },
+
   completeOnboarding: async (interests: string[], token: string) => {
     const response = await fetch(`${API_URL}/onboarding/complete`, {
       method: 'POST',
