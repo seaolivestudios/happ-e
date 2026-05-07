@@ -799,6 +799,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   feed: {
+    flex: 1,
     backgroundColor: '#F7F7F7',
   },
   feedContent: {
