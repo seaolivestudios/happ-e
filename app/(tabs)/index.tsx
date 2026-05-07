@@ -40,7 +40,10 @@ type ApiPost = {
   video_url?: string | null;
   widescreen?: boolean | null;
   smile_count?: string | number | null;
+  comment_count?: string | number | null;
   author_quote?: string | null;
+  category?: string | null;
+  created_at?: string | null;
 };
 
 type Post = {
@@ -54,7 +57,10 @@ type Post = {
   widescreen: boolean;
   smiles: number;
   comments: Comment[];
+  commentCount: number;
   author: string | null;
+  category: string | null;
+  createdAt: string;
 };
 
 const HEADER_HEIGHT = 75;
@@ -79,7 +85,10 @@ function normalizePost(raw: ApiPost): Post {
     widescreen: Boolean(raw.widescreen),
     smiles: Number.parseInt(String(raw.smile_count ?? 0), 10) || 0,
     comments: [],
+    commentCount: Number.parseInt(String(raw.comment_count ?? 0), 10) || 0,
     author: raw.author_quote ?? null,
+    category: raw.category ?? null,
+    createdAt: raw.created_at ?? '',
   };
 }
 
@@ -455,7 +464,7 @@ export default function HomeScreen() {
               color={dark ? '#FFFFFF' : '#333333'}
             />
             <Text style={[styles.actionCount, dark && styles.actionCountDark]}>
-              {post.comments.length}
+              {post.commentCount + post.comments.length}
             </Text>
           </Pressable>
 
@@ -482,13 +491,15 @@ export default function HomeScreen() {
       if (post.type === 'inspire') {
         return (
           <View key={post.id} style={styles.card}>
-            <View style={[styles.inspireInner, { height: imageHeight }]}>
-              <Text style={styles.inspireLabel}>✦ Inspire</Text>
-              <Text style={styles.inspireText}>{post.text}</Text>
-              {post.author ? (
-                <Text style={styles.inspireAuthor}>— {post.author}</Text>
-              ) : null}
-            </View>
+            <Pressable onPress={() => router.push(`/post/${post.id}` as any)}>
+              <View style={[styles.inspireInner, { height: imageHeight }]}>
+                <Text style={styles.inspireLabel}>✦ Inspire</Text>
+                <Text style={styles.inspireText}>{post.text}</Text>
+                {post.author ? (
+                  <Text style={styles.inspireAuthor}>— {post.author}</Text>
+                ) : null}
+              </View>
+            </Pressable>
             {renderActions(post, true)}
           </View>
         );
@@ -496,32 +507,32 @@ export default function HomeScreen() {
 
       return (
         <View key={post.id} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
+          <Pressable onPress={() => router.push(`/post/${post.id}` as any)}>
+            <View style={styles.cardHeader}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
+              </View>
+              <View style={styles.userInfo}>
+                <Text style={styles.cardUser}>{post.name || 'Unknown'}</Text>
+                <Text style={styles.cardHandle}>{post.user}</Text>
+              </View>
             </View>
 
-            <View style={styles.userInfo}>
-              <Text style={styles.cardUser}>{post.name || 'Unknown'}</Text>
-              <Text style={styles.cardHandle}>{post.user}</Text>
-            </View>
+            {post.type === 'video' && post.video ? (
+              <Video
+                source={{ uri: post.video }}
+                style={[styles.cardVideo, { height: imageHeight }]}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={false}
+                isLooping
+                useNativeControls
+              />
+            ) : post.image ? (
+              <ImageCard uri={post.image} height={imageHeight} />
+            ) : null}
 
-          </View>
-
-          {post.type === 'video' && post.video ? (
-            <Video
-              source={{ uri: post.video }}
-              style={[styles.cardVideo, { height: imageHeight }]}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay={false}
-              isLooping
-              useNativeControls
-            />
-          ) : post.image ? (
-            <ImageCard uri={post.image} height={imageHeight} />
-          ) : null}
-
-          <Text style={styles.cardText}>{post.text}</Text>
+            <Text style={styles.cardText}>{post.text}</Text>
+          </Pressable>
           {renderActions(post)}
         </View>
       );

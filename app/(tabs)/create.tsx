@@ -98,6 +98,7 @@ export default function CreateScreen() {
         text: caption.trim(),
         image_url: type === 'image' ? mediaUrl : undefined,
         video_url: type === 'video' ? mediaUrl : undefined,
+        category: selectedCategory || undefined,
       };
 
       const result = await api.createPost(payload, token ?? '');

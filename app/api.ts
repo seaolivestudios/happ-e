@@ -49,6 +49,11 @@ export const api = {
     return response.json();
   },
 
+  getPost: async (id: string) => {
+    const response = await fetch(`${API_URL}/posts/${id}`);
+    return response.json();
+  },
+
   smilePost: async (postId: string, token: string) => {
     const response = await fetch(`${API_URL}/posts/${postId}/smile`, {
       method: 'POST',
