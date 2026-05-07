@@ -8,6 +8,7 @@ import {
   Animated,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -118,7 +119,6 @@ function ImageCard({
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
   const cardWidth = width - PORTRAIT_CARD_HORIZONTAL_MARGIN * 2;
   const imageHeight = cardWidth * (5 / 4);
   const portraitCardEstimatedHeight = imageHeight + PORTRAIT_CARD_EXTRA_HEIGHT;
@@ -132,12 +132,14 @@ export default function HomeScreen() {
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string } | null>(null);
+  const [widescreenVisible, setWidescreenVisible] = useState(false);
+  const [widescreenPostId, setWidescreenPostId] = useState<string | null>(null);
 
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
-  const landscapeScrollRef = useRef<ScrollView>(null);
   const portraitScrollRef = useRef<ScrollView>(null);
+  const widescreenScrollRef = useRef<ScrollView>(null);
 
   const widescreenPosts = useMemo(
     () => posts.filter((post) => post.widescreen),
@@ -155,7 +157,7 @@ export default function HomeScreen() {
     }
   }, [commentVisible, commentAnim, commentDrawerHiddenX]);
 
-useEffect(() => {
+  useEffect(() => {
     async function loadUser() {
       const user = await getUser();
       if (user) setCurrentUser(user);
@@ -218,6 +220,41 @@ useEffect(() => {
       friction: 11,
     }).start();
   }, [menuAnim, menuOpen]);
+
+  // Scroll portrait feed to keep current post visible when posts load
+  useEffect(() => {
+    if (!currentPostId) return;
+
+    const index = posts.findIndex((post) => post.id === currentPostId);
+    const targetIndex = index >= 0 ? index : 0;
+    const targetY = targetIndex * (portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM);
+
+    const frame = requestAnimationFrame(() => {
+      portraitScrollRef.current?.scrollTo({
+        y: targetY,
+        animated: false,
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [currentPostId, portraitCardEstimatedHeight, posts]);
+
+  // Scroll widescreen modal to the tapped post when it opens
+  useEffect(() => {
+    if (!widescreenVisible || !widescreenPostId) return;
+
+    const index = widescreenPosts.findIndex((p) => p.id === widescreenPostId);
+    const targetIndex = index >= 0 ? index : 0;
+
+    const frame = requestAnimationFrame(() => {
+      widescreenScrollRef.current?.scrollTo({
+        y: targetIndex * height,
+        animated: false,
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [widescreenVisible, widescreenPostId, widescreenPosts, height]);
 
   const openMenu = useCallback(() => {
     setMenuOpen(true);
@@ -287,6 +324,16 @@ useEffect(() => {
       setNewComment('');
     });
   }, [commentAnim, commentDrawerHiddenX, commentOpacity]);
+
+  const openWidescreen = useCallback((postId: string) => {
+    setWidescreenPostId(postId);
+    setWidescreenVisible(true);
+  }, []);
+
+  const closeWidescreen = useCallback(() => {
+    setWidescreenVisible(false);
+    setWidescreenPostId(null);
+  }, []);
 
   const handleSmile = useCallback(
     async (id: string) => {
@@ -401,57 +448,6 @@ useEffect(() => {
     [portraitCardEstimatedHeight, posts]
   );
 
-  const handleLandscapeMomentumEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offsetY = Math.max(0, event.nativeEvent.contentOffset.y);
-      const index = Math.round(offsetY / height);
-      const clampedIndex = Math.min(Math.max(index, 0), widescreenPosts.length - 1);
-
-      if (widescreenPosts[clampedIndex]) {
-        setCurrentPostId(widescreenPosts[clampedIndex].id);
-      }
-    },
-    [height, widescreenPosts]
-  );
-
-  useEffect(() => {
-    if (!currentPostId) return;
-
-    if (isLandscape) {
-      const index = widescreenPosts.findIndex((post) => post.id === currentPostId);
-      const targetIndex = index >= 0 ? index : 0;
-
-      const frame = requestAnimationFrame(() => {
-        landscapeScrollRef.current?.scrollTo({
-          y: targetIndex * height,
-          animated: false,
-        });
-      });
-
-      return () => cancelAnimationFrame(frame);
-    }
-
-    const index = posts.findIndex((post) => post.id === currentPostId);
-    const targetIndex = index >= 0 ? index : 0;
-    const targetY = targetIndex * (portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM);
-
-    const frame = requestAnimationFrame(() => {
-      portraitScrollRef.current?.scrollTo({
-        y: targetY,
-        animated: false,
-      });
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [
-    currentPostId,
-    height,
-    isLandscape,
-    portraitCardEstimatedHeight,
-    posts,
-    widescreenPosts,
-  ]);
-
   const renderActions = useCallback(
     (post: Post, dark = false) => {
       const smiled = smiledPosts.has(post.id);
@@ -548,12 +544,18 @@ useEffect(() => {
             </View>
 
             {post.widescreen ? (
-              <View style={styles.widescreenBadge}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="View in widescreen"
+                hitSlop={10}
+                style={styles.widescreenBadge}
+                onPress={() => openWidescreen(post.id)}
+              >
                 <Image
                   source={require('../../assets/images/arrows-left-right.png')}
                   style={styles.widescreenIcon}
                 />
-              </View>
+              </Pressable>
             ) : null}
           </View>
 
@@ -575,7 +577,7 @@ useEffect(() => {
         </View>
       );
     },
-    [imageHeight, renderActions]
+    [imageHeight, openWidescreen, renderActions]
   );
 
   const renderHorizontalCard = useCallback(
@@ -665,55 +667,41 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      {!isLandscape ? (
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open menu"
-            hitSlop={10}
-            onPress={openMenu}
-            style={styles.hamburger}
-          >
-            <View style={styles.hamburgerLine} />
-            <View style={styles.hamburgerLine} />
-            <View style={styles.hamburgerLine} />
-          </Pressable>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          hitSlop={10}
+          onPress={openMenu}
+          style={styles.hamburger}
+        >
+          <View style={styles.hamburgerLine} />
+          <View style={styles.hamburgerLine} />
+          <View style={styles.hamburgerLine} />
+        </Pressable>
 
-          <Image
-            source={require('../../assets/images/Logo v_1.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+        <Image
+          source={require('../../assets/images/Logo v_1.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open notifications"
-            hitSlop={10}
-            style={styles.smilesBtn}
-            onPress={() => router.push('/(tabs)/notifications')}
-          >
-            <Ionicons name="happy-outline" size={26} color="#FFC300" />
-          </Pressable>
-        </View>
-      ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open notifications"
+          hitSlop={10}
+          style={styles.smilesBtn}
+          onPress={() => router.push('/(tabs)/notifications')}
+        >
+          <Ionicons name="happy-outline" size={26} color="#FFC300" />
+        </Pressable>
+      </View>
 
       {isLoadingPosts ? (
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color="#FFC300" />
           <Text style={styles.loadingText}>Loading posts...</Text>
         </View>
-      ) : isLandscape ? (
-        <ScrollView
-          ref={landscapeScrollRef}
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={height}
-          snapToAlignment="start"
-          onMomentumScrollEnd={handleLandscapeMomentumEnd}
-        >
-          {widescreenPosts.map(renderHorizontalCard)}
-        </ScrollView>
       ) : (
         <ScrollView
           ref={portraitScrollRef}
@@ -890,6 +878,36 @@ useEffect(() => {
           </Animated.View>
         </>
       ) : null}
+
+      <Modal
+        visible={widescreenVisible}
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={closeWidescreen}
+      >
+        <View style={styles.widescreenModal}>
+          <ScrollView
+            ref={widescreenScrollRef}
+            pagingEnabled
+            showsVerticalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={height}
+            snapToAlignment="start"
+          >
+            {widescreenPosts.map(renderHorizontalCard)}
+          </ScrollView>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close widescreen"
+            hitSlop={16}
+            style={styles.widescreenClose}
+            onPress={closeWidescreen}
+          >
+            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1341,5 +1359,14 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  widescreenModal: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  widescreenClose: {
+    position: 'absolute',
+    top: 56,
+    right: 20,
   },
 });
