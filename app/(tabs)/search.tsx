@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { api } from '../api';
 import { getToken } from '../auth';
+import { getEmojiByLabel } from '../interests';
 
 type User = {
   id: string;
@@ -100,9 +101,15 @@ export default function SearchScreen() {
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [discoverPosts, setDiscoverPosts] = useState<DiscoverPost[]>([]);
+  const [forYouPosts, setForYouPosts] = useState<DiscoverPost[]>([]);
+  const [forYouLoading, setForYouLoading] = useState(false);
   const [categoryPosts, setCategoryPosts] = useState<DiscoverPost[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [myInterests, setMyInterests] = useState<string[]>([]);
+  const [moodFilter, setMoodFilter] = useState<string | null>(null);
+  const [moodPosts, setMoodPosts] = useState<DiscoverPost[]>([]);
+  const [moodLoading, setMoodLoading] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const colWidth = (width - 32 - 8) / 3;
@@ -111,7 +118,58 @@ export default function SearchScreen() {
   useEffect(() => {
     void loadSuggested();
     void loadDiscover();
+    void loadForYou();
+    void loadMyInterests();
   }, []);
+
+  const loadMyInterests = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const result = await api.getMyInterests(token);
+      if (result.success && result.interests?.length) setMyInterests(result.interests);
+    } catch {}
+  };
+
+  const loadForYou = async () => {
+    setForYouLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) { setForYouLoading(false); return; }
+      const result = await api.getPostsForYou(token);
+      if (result.success) {
+        setForYouPosts(result.posts.filter((p: any) => p.image_url || p.video_url).map((p: any) => ({
+          id: String(p.id),
+          image_url: p.image_url,
+          text: p.text,
+          type: p.type,
+          handle: p.handle,
+        })));
+      }
+    } catch {} finally {
+      setForYouLoading(false);
+    }
+  };
+
+  const handleMoodPress = async (label: string) => {
+    if (moodFilter === label) { setMoodFilter(null); return; }
+    setMoodFilter(label);
+    setMoodLoading(true);
+    try {
+      const result = await api.getPostsByCategory(label);
+      if (result.success) {
+        setMoodPosts(result.posts.map((p: any) => ({
+          id: String(p.id),
+          image_url: p.image_url,
+          text: p.text,
+          type: p.type,
+          handle: p.handle,
+        })));
+      }
+    } catch {} finally {
+      setMoodLoading(false);
+    }
+  };
 
   const loadSuggested = async () => {
     try {
@@ -270,13 +328,63 @@ export default function SearchScreen() {
           </View>
         ) : activeTab === 'discover' ? (
           <View style={{ paddingTop: 8 }}>
-            {discoverPosts.length === 0
-              ? <Text style={[styles.noResults, { marginTop: 60 }]}>No posts yet — be the first to share!</Text>
-              : renderGrid(discoverPosts)
-            }
-            <View style={styles.endMessage}>
-              <Text style={styles.endText}>✦ You've seen it all</Text>
-            </View>
+            {/* Mood boost chips — show user's interests as quick filters */}
+            {myInterests.length > 0 && (
+              <View style={styles.moodSection}>
+                <Text style={styles.moodLabel}>✦ PICK ME UP</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moodChips}>
+                  {myInterests.map(interest => (
+                    <Pressable
+                      key={interest}
+                      style={[styles.moodChip, moodFilter === interest && styles.moodChipActive]}
+                      onPress={() => handleMoodPress(interest)}
+                    >
+                      <Text style={styles.moodChipEmoji}>{getEmojiByLabel(interest)}</Text>
+                      <Text style={[styles.moodChipText, moodFilter === interest && styles.moodChipTextActive]}>
+                        {interest}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Mood-filtered content */}
+            {moodFilter ? (
+              moodLoading ? (
+                <ActivityIndicator color="#FFC300" style={{ marginTop: 40 }} />
+              ) : moodPosts.length === 0 ? (
+                <Text style={[styles.noResults, { marginTop: 40 }]}>No {moodFilter} posts yet.</Text>
+              ) : (
+                <>
+                  <Text style={[styles.moodResultsLabel, { paddingHorizontal: 16 }]}>
+                    {getEmojiByLabel(moodFilter)} {moodFilter}
+                  </Text>
+                  {renderGrid(moodPosts)}
+                </>
+              )
+            ) : (
+              <>
+                {/* For You section */}
+                {forYouPosts.length > 0 && (
+                  <>
+                    <Text style={[styles.moodResultsLabel, { paddingHorizontal: 16 }]}>For You</Text>
+                    {forYouLoading
+                      ? <ActivityIndicator color="#FFC300" style={{ marginTop: 20 }} />
+                      : renderGrid(forYouPosts)
+                    }
+                    <Text style={[styles.moodResultsLabel, { paddingHorizontal: 16, marginTop: 16 }]}>Everything</Text>
+                  </>
+                )}
+                {discoverPosts.length === 0
+                  ? <Text style={[styles.noResults, { marginTop: 60 }]}>No posts yet — be the first to share!</Text>
+                  : renderGrid(discoverPosts)
+                }
+                <View style={styles.endMessage}>
+                  <Text style={styles.endText}>✦ You've seen it all</Text>
+                </View>
+              </>
+            )}
           </View>
         ) : activeTab === 'people' ? (
           <View style={styles.searchResults}>
@@ -346,4 +454,18 @@ const styles = StyleSheet.create({
   categoryArrow: { fontSize: 20, color: '#FFC300' },
   endMessage: { padding: 30, alignItems: 'center' },
   endText: { fontSize: 13, color: '#444444' },
+
+  moodSection: { marginBottom: 12 },
+  moodLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 1.5, paddingHorizontal: 16, marginBottom: 10 },
+  moodChips: { paddingHorizontal: 16, gap: 8 },
+  moodChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#111111', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9,
+    borderWidth: 1, borderColor: '#333333',
+  },
+  moodChipActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
+  moodChipEmoji: { fontSize: 16 },
+  moodChipText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
+  moodChipTextActive: { color: '#000000' },
+  moodResultsLabel: { fontSize: 12, fontWeight: '700', color: '#FFC300', letterSpacing: 1, marginBottom: 10, marginTop: 4 },
 });

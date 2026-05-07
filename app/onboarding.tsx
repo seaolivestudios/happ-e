@@ -3,124 +3,9 @@ import { useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from './api';
 import { getToken } from './auth';
+import { INTEREST_CATEGORIES, getLabelById } from './interests';
 
 const { width } = Dimensions.get('window');
-
-const interestCategories = [
-  {
-    heading: 'Sports',
-    items: [
-      { id: 's1', label: 'Baseball', emoji: '⚾' },
-      { id: 's2', label: 'Basketball', emoji: '🏀' },
-      { id: 's3', label: 'Football', emoji: '🏈' },
-      { id: 's4', label: 'Hockey', emoji: '🏒' },
-      { id: 's5', label: 'Soccer', emoji: '⚽' },
-      { id: 's6', label: 'Golf', emoji: '⛳' },
-      { id: 's7', label: 'Tennis', emoji: '🎾' },
-      { id: 's8', label: 'Cycling', emoji: '🚴' },
-      { id: 's9', label: 'Running', emoji: '🏃' },
-      { id: 's10', label: 'Surfing', emoji: '🏄' },
-      { id: 's11', label: 'Skiing', emoji: '⛷️' },
-      { id: 's12', label: 'Wrestling', emoji: '🤼' },
-    ],
-  },
-  {
-    heading: 'Art',
-    items: [
-      { id: 'a1', label: 'Painting', emoji: '🎨' },
-      { id: 'a2', label: 'Drawing', emoji: '✏️' },
-      { id: 'a3', label: 'Sculpting', emoji: '🗿' },
-      { id: 'a4', label: 'Photography', emoji: '📷' },
-      { id: 'a5', label: 'Videography', emoji: '🎥' },
-      { id: 'a6', label: 'Digital Art', emoji: '🖥️' },
-      { id: 'a7', label: 'Illustration', emoji: '🖊️' },
-      { id: 'a8', label: 'Printmaking', emoji: '🖨️' },
-      { id: 'a9', label: 'Calligraphy', emoji: '✒️' },
-      { id: 'a10', label: 'Street Art', emoji: '🏙️' },
-    ],
-  },
-  {
-    heading: 'Crafting',
-    items: [
-      { id: 'c1', label: 'Woodworking', emoji: '🪵' },
-      { id: 'c2', label: 'Pottery', emoji: '🏺' },
-      { id: 'c3', label: 'Knitting', emoji: '🧶' },
-      { id: 'c4', label: 'Sewing', emoji: '🧵' },
-      { id: 'c5', label: 'Leatherwork', emoji: '🧤' },
-      { id: 'c6', label: 'Jewelry', emoji: '💍' },
-      { id: 'c7', label: 'Candle Making', emoji: '🕯️' },
-      { id: 'c8', label: 'Blacksmithing', emoji: '⚒️' },
-      { id: 'c9', label: 'Glassblowing', emoji: '🫧' },
-      { id: 'c10', label: 'Weaving', emoji: '🧺' },
-    ],
-  },
-  {
-    heading: 'Outdoors',
-    items: [
-      { id: 'o1', label: 'Fishing', emoji: '🎣' },
-      { id: 'o2', label: 'Hiking', emoji: '🥾' },
-      { id: 'o3', label: 'Camping', emoji: '🏕️' },
-      { id: 'o4', label: 'Hunting', emoji: '🦌' },
-      { id: 'o5', label: 'Gardening', emoji: '🌱' },
-      { id: 'o6', label: 'Bird Watching', emoji: '🦅' },
-      { id: 'o7', label: 'Rock Climbing', emoji: '🧗' },
-      { id: 'o8', label: 'Kayaking', emoji: '🛶' },
-      { id: 'o9', label: 'Mountain Biking', emoji: '🚵' },
-      { id: 'o10', label: 'Foraging', emoji: '🍄' },
-    ],
-  },
-  {
-    heading: 'Music',
-    items: [
-      { id: 'm1', label: 'Guitar', emoji: '🎸' },
-      { id: 'm2', label: 'Piano', emoji: '🎹' },
-      { id: 'm3', label: 'Drums', emoji: '🥁' },
-      { id: 'm4', label: 'Singing', emoji: '🎤' },
-      { id: 'm5', label: 'Violin', emoji: '🎻' },
-      { id: 'm6', label: 'DJ', emoji: '🎧' },
-      { id: 'm7', label: 'Songwriting', emoji: '🎼' },
-      { id: 'm8', label: 'Bass', emoji: '🎵' },
-      { id: 'm9', label: 'Trumpet', emoji: '🎺' },
-      { id: 'm10', label: 'Ukulele', emoji: '🪕' },
-    ],
-  },
-  {
-    heading: 'Food & Drink',
-    items: [
-      { id: 'f1', label: 'Cooking', emoji: '🍳' },
-      { id: 'f2', label: 'Baking', emoji: '🥖' },
-      { id: 'f3', label: 'BBQ', emoji: '🔥' },
-      { id: 'f4', label: 'Brewing', emoji: '🍺' },
-      { id: 'f5', label: 'Wine', emoji: '🍷' },
-      { id: 'f6', label: 'Coffee', emoji: '☕' },
-      { id: 'f7', label: 'Cocktails', emoji: '🍹' },
-      { id: 'f8', label: 'Smoking Meats', emoji: '🥩' },
-    ],
-  },
-  {
-    heading: 'Lifestyle',
-    items: [
-      { id: 'l1', label: 'Yoga', emoji: '🧘' },
-      { id: 'l2', label: 'Fitness', emoji: '💪' },
-      { id: 'l3', label: 'Meditation', emoji: '🌿' },
-      { id: 'l4', label: 'Travel', emoji: '✈️' },
-      { id: 'l5', label: 'Journaling', emoji: '📓' },
-      { id: 'l6', label: 'Reading', emoji: '📚' },
-      { id: 'l7', label: 'Volunteering', emoji: '🤝' },
-      { id: 'l8', label: 'Astronomy', emoji: '🔭' },
-      { id: 'l9', label: 'Cars', emoji: '🚗' },
-      { id: 'l10', label: 'Motorcycles', emoji: '🏍️' },
-    ],
-  },
-];
-
-function getLabel(id: string): string {
-  for (const section of interestCategories) {
-    const item = section.items.find(i => i.id === id);
-    if (item) return item.label;
-  }
-  return id;
-}
 
 export default function OnboardingScreen() {
   const [selected, setSelected] = useState<string[]>([]);
@@ -135,7 +20,7 @@ export default function OnboardingScreen() {
   const handleContinue = () => {
     if (step === 1) {
       if (selected.length < 3) return;
-      const labels = selected.map(getLabel);
+      const labels = selected.map(getLabelById);
       getToken().then(token => {
         api.completeOnboarding(labels, token ?? '').catch(() => {});
       }).catch(() => {});
@@ -199,7 +84,7 @@ export default function OnboardingScreen() {
       <Text style={styles.title}>What are you into?</Text>
       <Text style={styles.subtitle}>Pick at least 3 interests. We'll personalize your Inspire feed around what matters to you.</Text>
       <ScrollView style={styles.grid} contentContainerStyle={styles.gridContent}>
-        {interestCategories.map(section => (
+        {INTEREST_CATEGORIES.map(section => (
           <View key={section.heading}>
             <Text style={styles.sectionHeading}>{section.heading}</Text>
             <View style={styles.interestGrid}>

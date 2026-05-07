@@ -54,6 +54,13 @@ export const api = {
     return response.json();
   },
 
+  getPostsForYou: async (token: string) => {
+    const response = await fetch(`${API_URL}/posts?mood=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
   getPost: async (id: string) => {
     const response = await fetch(`${API_URL}/posts/${id}`);
     return response.json();
@@ -114,6 +121,22 @@ export const api = {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ password }),
+    });
+    return response.json();
+  },
+
+  getMyInterests: async (token: string) => {
+    const response = await fetch(`${API_URL}/profile/me/interests`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  updateInterests: async (interests: string[], token: string) => {
+    const response = await fetch(`${API_URL}/profile/me/interests`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ interests }),
     });
     return response.json();
   },

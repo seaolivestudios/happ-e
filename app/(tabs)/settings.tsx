@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
@@ -14,6 +16,9 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
+import { INTEREST_CATEGORIES, getEmojiByLabel } from '../interests';
+
+const { width } = Dimensions.get('window');
 
 const NOTIF_PREFS_KEY = 'happe_notif_prefs';
 
@@ -36,12 +41,56 @@ export default function SettingsScreen() {
   const [confirmPw, setConfirmPw] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
 
+  const [interestsModalVisible, setInterestsModalVisible] = useState(false);
+  const [editInterests, setEditInterests] = useState<string[]>([]);
+  const [interestsSaving, setInterestsSaving] = useState(false);
+  const [interestsLoading, setInterestsLoading] = useState(false);
+
   useEffect(() => {
     getUser().then(u => { if (u) setUser(u); });
     SecureStore.getItemAsync(NOTIF_PREFS_KEY).then(raw => {
       if (raw) setPrefs(JSON.parse(raw));
     });
   }, []);
+
+  const openInterestsModal = async () => {
+    setInterestsLoading(true);
+    setInterestsModalVisible(true);
+    try {
+      const token = await getToken();
+      const result = await api.getMyInterests(token ?? '');
+      if (result.success) setEditInterests(result.interests ?? []);
+    } catch {}
+    setInterestsLoading(false);
+  };
+
+  const toggleInterest = (label: string) => {
+    setEditInterests(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const saveInterests = async () => {
+    if (editInterests.length < 3) {
+      Alert.alert('Too few interests', 'Please select at least 3 interests.');
+      return;
+    }
+    setInterestsSaving(true);
+    try {
+      const token = await getToken();
+      const result = await api.updateInterests(editInterests, token ?? '');
+      if (result.success) {
+        setInterestsModalVisible(false);
+        Alert.alert('Saved!', 'Your interests have been updated. Your feed will reflect these choices.');
+      } else {
+        Alert.alert('Error', result.error ?? 'Could not save interests.');
+      }
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Try again.');
+    } finally {
+      setInterestsSaving(false);
+    }
+  };
 
   const savePref = (key: keyof NotifPrefs, value: boolean) => {
     const next = { ...prefs, [key]: value };
@@ -167,6 +216,19 @@ export default function SettingsScreen() {
               <View>
                 <Text style={styles.rowLabel}>Subscription</Text>
                 <Text style={styles.rowSub}>Happ-E Monthly · $4.99/mo</Text>
+              </View>
+              <Text style={styles.rowArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.row} onPress={openInterestsModal}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>My Interests</Text>
+                <Text style={styles.rowSub}>Personalize your For You feed</Text>
               </View>
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
@@ -318,6 +380,61 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
+      {/* Interests Modal */}
+      <Modal visible={interestsModalVisible} animationType="slide" statusBarTranslucent>
+        <View style={styles.interestsModal}>
+          <View style={styles.interestsHeader}>
+            <TouchableOpacity onPress={() => setInterestsModalVisible(false)} style={{ width: 60 }}>
+              <Text style={styles.interestsCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.interestsTitle}>My Interests</Text>
+            <TouchableOpacity
+              onPress={saveInterests}
+              disabled={interestsSaving || editInterests.length < 3}
+              style={[styles.interestsSaveBtn, (interestsSaving || editInterests.length < 3) && { opacity: 0.4 }]}
+            >
+              {interestsSaving
+                ? <ActivityIndicator size="small" color="#000000" />
+                : <Text style={styles.interestsSaveBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.interestsSubtitle}>
+            {editInterests.length} selected{editInterests.length < 3 ? ` — pick ${3 - editInterests.length} more` : ' — looking good!'}
+          </Text>
+
+          {interestsLoading ? (
+            <ActivityIndicator color="#FFC300" style={{ marginTop: 60 }} />
+          ) : (
+            <ScrollView contentContainerStyle={styles.interestsScroll}>
+              {INTEREST_CATEGORIES.map(section => (
+                <View key={section.heading}>
+                  <Text style={styles.interestsSectionHeading}>{section.heading}</Text>
+                  <View style={styles.interestsGrid}>
+                    {section.items.map(item => {
+                      const active = editInterests.includes(item.label);
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[styles.interestChip, active && styles.interestChipActive]}
+                          onPress={() => toggleInterest(item.label)}
+                        >
+                          <Text style={styles.interestChipEmoji}>{item.emoji}</Text>
+                          <Text style={[styles.interestChipLabel, active && styles.interestChipLabelActive]}>
+                            {item.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
+
       <Modal visible={pwModalVisible} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -404,4 +521,31 @@ const styles = StyleSheet.create({
   modalSaveBtnText: { fontSize: 16, fontWeight: '700', color: '#000000' },
   modalCancelBtn: { padding: 16, alignItems: 'center', marginTop: 4 },
   modalCancelText: { fontSize: 15, color: '#888888' },
+
+  // Interests modal
+  interestsModal: { flex: 1, backgroundColor: '#000000' },
+  interestsHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20,
+    borderBottomWidth: 2, borderBottomColor: '#FFC300',
+  },
+  interestsTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  interestsCancelText: { fontSize: 16, color: '#888888' },
+  interestsSaveBtn: {
+    backgroundColor: '#FFC300', borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 7, width: 60, alignItems: 'center',
+  },
+  interestsSaveBtnText: { fontSize: 14, fontWeight: '700', color: '#000000' },
+  interestsSubtitle: { fontSize: 13, color: '#888888', textAlign: 'center', paddingVertical: 12 },
+  interestsScroll: { paddingHorizontal: 16, paddingTop: 8 },
+  interestsSectionHeading: { fontSize: 13, fontWeight: '700', color: '#FFC300', letterSpacing: 1, marginBottom: 12, marginTop: 20 },
+  interestsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  interestChip: {
+    backgroundColor: '#111111', borderRadius: 16, padding: 12, alignItems: 'center',
+    borderWidth: 1, borderColor: '#333333', width: (width - 52) / 3,
+  },
+  interestChipActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
+  interestChipEmoji: { fontSize: 22, marginBottom: 4 },
+  interestChipLabel: { fontSize: 11, color: '#888888', fontWeight: '600', textAlign: 'center' },
+  interestChipLabelActive: { color: '#000000' },
 });
