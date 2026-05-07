@@ -1,19 +1,48 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { api, uploadMedia } from '../api';
 import { getToken, getUser } from '../auth';
 
-const categories = ['Woodworking', 'Photography', 'Painting', 'Outdoors', 'Fishing', 'Baseball', 'Music', 'Other'];
+const ALL_CATEGORIES = [
+  'Architecture', 'Art', 'Baseball', 'Basketball', 'Birdwatching', 'Boating',
+  'Brewing', 'Camping', 'Ceramics', 'Climbing', 'Cooking', 'Crafts', 'Cycling',
+  'Drawing', 'Embroidery', 'Fishing', 'Football', 'Foraging', 'Gardening',
+  'Glassblowing', 'Golf', 'Guitar', 'Hiking', 'Hockey', 'Home Improvement',
+  'Hunting', 'Jewelry Making', 'Kayaking', 'Knitting', 'Leatherwork',
+  'Metalwork', 'Motorcycles', 'Music', 'Outdoors', 'Painting', 'Photography',
+  'Pottery', 'Running', 'Sailing', 'Sculpting', 'Sewing', 'Skateboarding',
+  'Skiing', 'Snowboarding', 'Soccer', 'Surfing', 'Swimming', 'Tennis',
+  'Videography', 'Vinyl & Records', 'Woodworking', 'Writing', 'Yoga',
+].sort();
+
+type Step = 'pick' | 'compose';
 
 export default function CreateScreen() {
+  const [step, setStep] = useState<Step>('pick');
+  const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [widescreen, setWidescreen] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [categorySearch, setCategorySearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; avatar_url?: string } | null>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -23,58 +52,76 @@ export default function CreateScreen() {
     void loadUser();
   }, []);
 
+  // Reset state when tab is focused fresh
+  const resetAll = () => {
+    setStep('pick');
+    setMediaUri(null);
+    setMediaType('image');
+    setWidescreen(false);
+    setCaption('');
+    setSelectedCategory('');
+    setCategorySearch('');
+  };
+
   const pickFromLibrary = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Allow photo library access in Settings.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.8,
+      mediaTypes: ['images', 'videos'],
+      allowsEditing: false,
+      quality: 0.9,
       videoMaxDuration: 60,
     });
-
     if (!result.canceled && result.assets[0]) {
       setMediaUri(result.assets[0].uri);
       setMediaType(result.assets[0].type === 'video' ? 'video' : 'image');
+      setStep('compose');
     }
   };
 
   const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Please allow camera access in Settings.');
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Allow camera access in Settings.');
       return;
     }
-
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.8,
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.9,
     });
-
     if (!result.canceled && result.assets[0]) {
       setMediaUri(result.assets[0].uri);
-      setMediaType(result.assets[0].type === 'video' ? 'video' : 'image');
+      setMediaType('image');
+      setStep('compose');
     }
   };
 
-  const handlePickMedia = () => {
-    Alert.alert('Add Media', 'Choose how to add your photo or video', [
-      { text: 'Camera Roll', onPress: pickFromLibrary },
-      { text: 'Take Photo / Video', onPress: takePhoto },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const recordVideo = async () => {
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Allow camera access in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['videos'],
+      allowsEditing: false,
+      videoMaxDuration: 60,
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setMediaUri(result.assets[0].uri);
+      setMediaType('video');
+      setStep('compose');
+    }
   };
 
   const handlePost = async () => {
     if (!mediaUri) {
-      Alert.alert('Add a photo or video', 'Please select something to share.');
+      Alert.alert('Add media', 'Please select a photo or video.');
       return;
     }
     if (!caption.trim()) {
@@ -87,77 +134,155 @@ export default function CreateScreen() {
     }
 
     setLoading(true);
-
     try {
       const token = await getToken();
-      const type = mediaType ?? 'image';
-      const mediaUrl = await uploadMedia(mediaUri, type);
-
+      const mediaUrl = await uploadMedia(mediaUri, mediaType);
       const payload = {
-        type,
+        type: mediaType,
         text: caption.trim(),
-        image_url: type === 'image' ? mediaUrl : undefined,
-        video_url: type === 'video' ? mediaUrl : undefined,
-        category: selectedCategory || undefined,
+        image_url: mediaType === 'image' ? mediaUrl : undefined,
+        video_url: mediaType === 'video' ? mediaUrl : undefined,
+        widescreen,
+        category: selectedCategory,
       };
-
       const result = await api.createPost(payload, token ?? '');
-
       if (result.success || result.post) {
-        Alert.alert('Posted!', 'Your post has been shared.', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)/index') }
-        ]);
+        resetAll();
+        router.replace('/(tabs)/index');
       } else {
-        Alert.alert('Error', result.error || 'Something went wrong. Please try again.');
+        Alert.alert('Error', result.error || 'Something went wrong.');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Could not upload your post. Please check your connection.');
+    } catch {
+      Alert.alert('Error', 'Could not upload your post. Check your connection.');
     } finally {
       setLoading(false);
     }
   };
 
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase();
+    return q ? ALL_CATEGORIES.filter(c => c.toLowerCase().includes(q)) : ALL_CATEGORIES;
+  }, [categorySearch]);
+
+  // ─── Step 1: Pick media ───────────────────────────────────────────────────
+
+  if (step === 'pick') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={{ width: 60 }} />
+          <Text style={styles.headerTitle}>New Post</Text>
+          <Pressable onPress={() => router.back()} style={styles.cancelBtn}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.pickBody}>
+          <Text style={styles.pickPrompt}>How do you want to share?</Text>
+
+          <Pressable style={styles.pickOption} onPress={takePhoto}>
+            <View style={styles.pickIconCircle}>
+              <Ionicons name="camera" size={32} color="#000000" />
+            </View>
+            <View style={styles.pickOptionText}>
+              <Text style={styles.pickOptionTitle}>Take a Photo</Text>
+              <Text style={styles.pickOptionSub}>Open your camera and capture a moment</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444444" />
+          </Pressable>
+
+          <Pressable style={styles.pickOption} onPress={recordVideo}>
+            <View style={styles.pickIconCircle}>
+              <Ionicons name="videocam" size={32} color="#000000" />
+            </View>
+            <View style={styles.pickOptionText}>
+              <Text style={styles.pickOptionTitle}>Record a Video</Text>
+              <Text style={styles.pickOptionSub}>Up to 60 seconds</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444444" />
+          </Pressable>
+
+          <Pressable style={styles.pickOption} onPress={pickFromLibrary}>
+            <View style={styles.pickIconCircle}>
+              <Ionicons name="images" size={32} color="#000000" />
+            </View>
+            <View style={styles.pickOptionText}>
+              <Text style={styles.pickOptionTitle}>Camera Roll</Text>
+              <Text style={styles.pickOptionSub}>Choose a photo or video you've already taken</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444444" />
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // ─── Step 2: Compose ─────────────────────────────────────────────────────
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} disabled={loading}>
-          <Text style={styles.cancel}>Cancel</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>New Post</Text>
-        <TouchableOpacity onPress={handlePost} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#FFC300" />
-          ) : (
-            <Text style={styles.share}>Share</Text>
-          )}
-        </TouchableOpacity>
+        <Pressable onPress={resetAll} style={styles.cancelBtn} disabled={loading}>
+          <Ionicons name="arrow-back" size={22} color="#888888" />
+        </Pressable>
+        <Text style={styles.headerTitle}>New Post</Text>
+        <Pressable onPress={handlePost} disabled={loading} style={styles.shareBtn}>
+          {loading
+            ? <ActivityIndicator color="#000000" size="small" />
+            : <Text style={styles.shareBtnText}>Share</Text>}
+        </Pressable>
       </View>
 
-      <ScrollView style={styles.body}>
-        <TouchableOpacity style={styles.imagePicker} onPress={handlePickMedia} disabled={loading}>
-          {mediaUri ? (
-            <Image source={{ uri: mediaUri }} style={styles.previewImage} resizeMode="cover" />
-          ) : (
-            <>
-              <Text style={styles.imagePickerIcon}>+</Text>
-              <Text style={styles.imagePickerText}>Tap to add a photo or video</Text>
-              <Text style={styles.imagePickerSub}>4:5 portrait or landscape widescreen</Text>
-            </>
-          )}
-        </TouchableOpacity>
+      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} keyboardShouldPersistTaps="handled">
 
-        {mediaUri && (
-          <TouchableOpacity style={styles.changeMediaBtn} onPress={handlePickMedia} disabled={loading}>
-            <Text style={styles.changeMediaText}>Change photo / video</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.captionRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
-            </Text>
+        {/* Media preview */}
+        <Pressable
+          style={[styles.preview, widescreen ? styles.previewWide : styles.previewPortrait]}
+          onPress={resetAll}
+          disabled={loading}
+        >
+          {mediaType === 'video' && mediaUri ? (
+            <Video
+              source={{ uri: mediaUri }}
+              style={styles.previewMedia}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay={false}
+              isMuted
+              isLooping
+              useNativeControls
+            />
+          ) : mediaUri ? (
+            <Image source={{ uri: mediaUri }} style={styles.previewMedia} resizeMode="cover" />
+          ) : null}
+          <View style={styles.previewChangeOverlay}>
+            <Ionicons name="swap-horizontal" size={16} color="#FFFFFF" />
+            <Text style={styles.previewChangeText}>Change</Text>
           </View>
+        </Pressable>
+
+        {/* Widescreen toggle */}
+        <Pressable style={styles.toggleRow} onPress={() => setWidescreen(w => !w)} disabled={loading}>
+          <View style={styles.toggleLeft}>
+            <Ionicons name="expand-outline" size={20} color="#FFC300" />
+            <View>
+              <Text style={styles.toggleTitle}>Horizontal View</Text>
+              <Text style={styles.toggleSub}>Show as a widescreen 16:9 card in the feed</Text>
+            </View>
+          </View>
+          <View style={[styles.toggle, widescreen && styles.toggleOn]}>
+            <View style={[styles.toggleThumb, widescreen && styles.toggleThumbOn]} />
+          </View>
+        </Pressable>
+
+        {/* Caption */}
+        <View style={styles.captionRow}>
+          {currentUser?.avatar_url ? (
+            <Image source={{ uri: currentUser.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarText}>{currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}</Text>
+            </View>
+          )}
           <TextInput
             style={styles.captionInput}
             placeholder="Share what you created..."
@@ -169,58 +294,202 @@ export default function CreateScreen() {
             editable={!loading}
           />
         </View>
+        <Text style={styles.charCount}>{300 - caption.length} remaining</Text>
 
-        <Text style={styles.charCount}>{300 - caption.length} characters remaining</Text>
+        {/* Category picker */}
+        <Text style={styles.sectionLabel}>CATEGORY</Text>
+        <Pressable
+          style={styles.categorySelector}
+          onPress={() => setCategoryModalVisible(true)}
+          disabled={loading}
+        >
+          <Text style={[styles.categorySelectorText, !selectedCategory && styles.categorySelectorPlaceholder]}>
+            {selectedCategory || 'Choose a category...'}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#FFC300" />
+        </Pressable>
 
-        <Text style={styles.sectionLabel}>Category</Text>
-        <View style={styles.categoryGrid}>
-          {categories.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryBtn, selectedCategory === cat && styles.categoryBtnActive]}
-              onPress={() => setSelectedCategory(cat)}
-              disabled={loading}
-            >
-              <Text style={[styles.categoryText, selectedCategory === cat && styles.categoryTextActive]}>{cat}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
+        {/* Guidelines */}
         <View style={styles.guidelinesBox}>
           <Text style={styles.guidelinesTitle}>✦ Happ-E Community Guidelines</Text>
           <Text style={styles.guidelinesText}>Share your craft and creativity. No political content, no negativity, no memes. Keep it real and keep it kind.</Text>
         </View>
+
       </ScrollView>
+
+      {/* Category modal */}
+      <Modal
+        visible={categoryModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setCategoryModalVisible(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose a Category</Text>
+              <Pressable onPress={() => setCategoryModalVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color="#888888" />
+              </Pressable>
+            </View>
+
+            <View style={styles.categorySearchRow}>
+              <Ionicons name="search" size={16} color="#888888" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.categorySearchInput}
+                placeholder="Search categories..."
+                placeholderTextColor="#888888"
+                value={categorySearch}
+                onChangeText={setCategorySearch}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {categorySearch.length > 0 && (
+                <Pressable onPress={() => setCategorySearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color="#888888" />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView style={styles.categoryList} keyboardShouldPersistTaps="handled">
+              {filteredCategories.map(cat => (
+                <Pressable
+                  key={cat}
+                  style={[styles.categoryOption, selectedCategory === cat && styles.categoryOptionActive]}
+                  onPress={() => {
+                    setSelectedCategory(cat);
+                    setCategorySearch('');
+                    setCategoryModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.categoryOptionText, selectedCategory === cat && styles.categoryOptionTextActive]}>
+                    {cat}
+                  </Text>
+                  {selectedCategory === cat && (
+                    <Ionicons name="checkmark" size={18} color="#FFC300" />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000000' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
-  cancel: { fontSize: 16, color: '#888888' },
-  title: { fontSize: 16, fontWeight: '700', color: '#FFC300' },
-  share: { fontSize: 16, fontWeight: '700', color: '#FFC300' },
-  body: { padding: 16 },
-  imagePicker: { backgroundColor: '#111111', borderRadius: 16, borderWidth: 2, borderColor: '#FFC300', borderStyle: 'dashed', height: 280, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden' },
-  previewImage: { width: '100%', height: '100%', borderRadius: 14 },
-  imagePickerIcon: { fontSize: 48, color: '#FFC300', marginBottom: 8 },
-  imagePickerText: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
-  imagePickerSub: { fontSize: 12, color: '#888888', marginTop: 6 },
-  changeMediaBtn: { alignItems: 'center', marginBottom: 16 },
-  changeMediaText: { fontSize: 13, color: '#FFC300', fontWeight: '600' },
-  captionRow: { flexDirection: 'row', gap: 12, marginBottom: 8, alignItems: 'flex-start' },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20,
+    borderBottomWidth: 2, borderBottomColor: '#FFC300',
+  },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  cancelBtn: { width: 60 },
+  cancelText: { fontSize: 16, color: '#888888' },
+  shareBtn: {
+    backgroundColor: '#FFC300', borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 7, width: 60, alignItems: 'center',
+  },
+  shareBtnText: { fontSize: 14, fontWeight: '700', color: '#000000' },
+
+  // Pick step
+  pickBody: { flex: 1, padding: 24, justifyContent: 'center', gap: 16 },
+  pickPrompt: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
+  pickOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    backgroundColor: '#111111', borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: '#222222',
+  },
+  pickIconCircle: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  pickOptionText: { flex: 1 },
+  pickOptionTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  pickOptionSub: { fontSize: 13, color: '#888888', marginTop: 3 },
+
+  // Compose step
+  body: { flex: 1 },
+  bodyContent: { padding: 16, paddingBottom: 60 },
+
+  preview: { borderRadius: 14, overflow: 'hidden', marginBottom: 4, position: 'relative', backgroundColor: '#111111' },
+  previewPortrait: { aspectRatio: 4 / 5 },
+  previewWide: { aspectRatio: 16 / 9 },
+  previewMedia: { width: '100%', height: '100%' },
+  previewChangeOverlay: {
+    position: 'absolute', bottom: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  previewChangeText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#111111', borderRadius: 14, padding: 14, marginBottom: 16,
+    borderWidth: 1, borderColor: '#222222',
+  },
+  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  toggleTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  toggleSub: { fontSize: 12, color: '#888888', marginTop: 2 },
+  toggle: {
+    width: 44, height: 26, borderRadius: 13,
+    backgroundColor: '#333333', justifyContent: 'center', padding: 2,
+  },
+  toggleOn: { backgroundColor: '#FFC300' },
+  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFFFFF' },
+  toggleThumbOn: { transform: [{ translateX: 18 }] },
+
+  captionRow: { flexDirection: 'row', gap: 12, marginBottom: 4, alignItems: 'flex-start' },
+  avatar: { width: 36, height: 36, borderRadius: 18, flexShrink: 0 },
+  avatarFallback: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   avatarText: { fontSize: 16, fontWeight: '700', color: '#000000' },
   captionInput: { flex: 1, fontSize: 15, color: '#FFFFFF', minHeight: 80, lineHeight: 22 },
   charCount: { fontSize: 11, color: '#888888', textAlign: 'right', marginBottom: 20 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#FFC300', letterSpacing: 1, marginBottom: 12 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
-  categoryBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#333333', backgroundColor: '#111111' },
-  categoryBtnActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
-  categoryText: { fontSize: 13, color: '#888888', fontWeight: '600' },
-  categoryTextActive: { color: '#000000' },
-  guidelinesBox: { backgroundColor: '#111111', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#FFC300', marginBottom: 40 },
+
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 1.5, marginBottom: 8 },
+  categorySelector: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#111111', borderRadius: 14, padding: 16, marginBottom: 20,
+    borderWidth: 1, borderColor: '#333333',
+  },
+  categorySelectorText: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
+  categorySelectorPlaceholder: { color: '#888888', fontWeight: '400' },
+
+  guidelinesBox: { backgroundColor: '#111111', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#FFC300' },
   guidelinesTitle: { fontSize: 13, fontWeight: '700', color: '#FFC300', marginBottom: 8 },
   guidelinesText: { fontSize: 13, color: '#FFFFFF', lineHeight: 20, opacity: 0.85 },
+
+  // Category modal
+  modalContainer: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalSheet: {
+    backgroundColor: '#111111', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 2, borderTopColor: '#FFC300',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, borderBottomWidth: 0.5, borderBottomColor: '#222222',
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  categorySearchRow: {
+    flexDirection: 'row', alignItems: 'center',
+    margin: 16, backgroundColor: '#1A1A1A', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: '#333333',
+  },
+  categorySearchInput: { flex: 1, fontSize: 15, color: '#FFFFFF' },
+  categoryList: { paddingHorizontal: 16, paddingBottom: 40 },
+  categoryOption: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 15, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A',
+  },
+  categoryOptionActive: { },
+  categoryOptionText: { fontSize: 16, color: '#FFFFFF' },
+  categoryOptionTextActive: { color: '#FFC300', fontWeight: '700' },
 });
