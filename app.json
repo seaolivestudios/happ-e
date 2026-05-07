@@ -3,7 +3,7 @@
     "name": "Happ-E",
     "slug": "happ-e",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/images/App_Icon.png",
     "scheme": "happyapp",
     "userInterfaceStyle": "automatic",
