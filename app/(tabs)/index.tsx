@@ -1,5 +1,6 @@
 // app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -117,6 +118,7 @@ function ImageCard({
 }
 
 export default function HomeScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const { width } = useWindowDimensions();
   const cardWidth = width - PORTRAIT_CARD_HORIZONTAL_MARGIN * 2;
   const imageHeight = cardWidth * (5 / 4);
@@ -570,7 +572,7 @@ export default function HomeScreen() {
           style={styles.feed}
           onScroll={handlePortraitScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={styles.feedContent}
+          contentContainerStyle={[styles.feedContent, { paddingBottom: tabBarHeight }]}
         >
           {posts.map(renderVerticalCard)}
         </ScrollView>
