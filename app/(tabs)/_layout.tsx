@@ -1,19 +1,16 @@
 // app/(tabs)/_layout.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function TabLayout() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#FFC300',
         tabBarInactiveTintColor: '#888888',
-        tabBarStyle: isLandscape ? styles.hiddenTabBar : styles.tabBar,
+        tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarHideOnKeyboard: true,
       }}
@@ -92,11 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     borderTopWidth: 2,
     borderTopColor: '#FFC300',
-  },
-  hiddenTabBar: {
-    height: 0,
-    overflow: 'hidden',
-    borderTopWidth: 0,
   },
   tabBarLabel: {
     fontSize: 11,
