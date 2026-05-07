@@ -1,6 +1,5 @@
 // app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { ResizeMode, Video } from 'expo-av';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -64,9 +63,7 @@ type Post = {
 };
 
 const HEADER_HEIGHT = 75;
-const PORTRAIT_CARD_MARGIN_BOTTOM = 12;
 const PORTRAIT_CARD_HORIZONTAL_MARGIN = 12;
-const PORTRAIT_CARD_EXTRA_HEIGHT = 140;
 const MENU_WIDTH = 280;
 const COMMENT_DRAWER_WIDTH_PERCENT = '82%';
 
@@ -100,17 +97,11 @@ function getAvatarLetter(post: Post): string {
   return getDisplayName(post).charAt(0).toUpperCase() || 'U';
 }
 
-function ImageCard({
-  uri,
-  height,
-}: {
-  uri: string;
-  height: number;
-}) {
+function ImageCard({ uri }: { uri: string }) {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <View style={[styles.imageCardContainer, { height }]}>
+    <View style={styles.imageCardContainer}>
       {!loaded && (
         <View style={styles.imagePlaceholder}>
           <ActivityIndicator color="#FFC300" />
@@ -118,7 +109,7 @@ function ImageCard({
       )}
       <Image
         source={{ uri }}
-        style={[styles.cardImage, { height, opacity: loaded ? 1 : 0 }]}
+        style={[styles.cardImage, { opacity: loaded ? 1 : 0 }]}
         resizeMode="cover"
         onLoad={() => setLoaded(true)}
       />
@@ -127,12 +118,9 @@ function ImageCard({
 }
 
 export default function HomeScreen() {
-  const tabBarHeight = useBottomTabBarHeight();
   const { width } = useWindowDimensions();
-  const cardWidth = width - PORTRAIT_CARD_HORIZONTAL_MARGIN * 2;
-  const imageHeight = cardWidth * (5 / 4);
-  const portraitCardEstimatedHeight = imageHeight + PORTRAIT_CARD_EXTRA_HEIGHT;
   const commentDrawerHiddenX = width;
+  const [feedHeight, setFeedHeight] = useState(0);
   const [posts, setPosts] = useState<Post[]>([]);
   const [smiledPosts, setSmiledPosts] = useState<Set<string>>(new Set());
   const [commentVisible, setCommentVisible] = useState(false);
@@ -453,7 +441,7 @@ export default function HomeScreen() {
             style={styles.actionBtn}
           >
             <Ionicons
-              name="arrow-redo-outline"
+              name="share-outline"
               size={22}
               color={dark ? '#FFFFFF' : '#333333'}
             />
@@ -466,11 +454,13 @@ export default function HomeScreen() {
 
   const renderVerticalCard = useCallback(
     (post: Post) => {
+      const cardHeight = feedHeight > 0 ? { height: feedHeight } : { flex: 1 };
+
       if (post.type === 'inspire') {
         return (
-          <View key={post.id} style={styles.card}>
-            <Pressable onPress={() => router.push(`/post/${post.id}` as any)}>
-              <View style={[styles.inspireInner, { height: imageHeight }]}>
+          <View key={post.id} style={[styles.card, cardHeight]}>
+            <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
+              <View style={styles.inspireInner}>
                 <Text style={styles.inspireLabel}>✦ Inspire</Text>
                 <Text style={styles.inspireText}>{post.text}</Text>
                 {post.author ? (
@@ -484,8 +474,8 @@ export default function HomeScreen() {
       }
 
       return (
-        <View key={post.id} style={styles.card}>
-          <Pressable onPress={() => router.push(`/post/${post.id}` as any)}>
+        <View key={post.id} style={[styles.card, cardHeight]}>
+          <Pressable style={styles.cardPressable} onPress={() => router.push(`/post/${post.id}` as any)}>
             <View style={styles.cardHeader}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
@@ -499,23 +489,25 @@ export default function HomeScreen() {
             {post.type === 'video' && post.video ? (
               <Video
                 source={{ uri: post.video }}
-                style={[styles.cardVideo, { height: imageHeight }]}
+                style={styles.cardMedia}
                 resizeMode={ResizeMode.COVER}
                 shouldPlay={false}
                 isLooping
                 useNativeControls
               />
             ) : post.image ? (
-              <ImageCard uri={post.image} height={imageHeight} />
+              <ImageCard uri={post.image} />
             ) : null}
 
-            <Text style={styles.cardText}>{post.text}</Text>
+            {post.text ? (
+              <Text style={styles.cardText} numberOfLines={2}>{post.text}</Text>
+            ) : null}
           </Pressable>
           {renderActions(post)}
         </View>
       );
     },
-    [imageHeight, renderActions]
+    [feedHeight, renderActions]
   );
 
   return (
@@ -562,13 +554,15 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => renderVerticalCard(item)}
           style={styles.feed}
-          contentContainerStyle={[styles.feedContent, { paddingBottom: tabBarHeight }]}
-          snapToInterval={portraitCardEstimatedHeight + PORTRAIT_CARD_MARGIN_BOTTOM}
-          decelerationRate="fast"
-          snapToAlignment="start"
+          contentContainerStyle={styles.feedContent}
+          pagingEnabled
           showsVerticalScrollIndicator={false}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          onLayout={e => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 0) setFeedHeight(h);
+          }}
         />
       )}
 
@@ -798,18 +792,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F7F7',
   },
-  feedContent: {
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
+  feedContent: {},
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: PORTRAIT_CARD_MARGIN_BOTTOM,
     marginHorizontal: PORTRAIT_CARD_HORIZONTAL_MARGIN,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     overflow: 'hidden',
+    borderRadius: 16,
+  },
+  cardPressable: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -844,13 +837,15 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   imageCardContainer: {
-    width: '100%',
+    flex: 1,
     backgroundColor: '#F0F0F0',
   },
   cardImage: {
+    flex: 1,
     width: '100%',
   },
-  cardVideo: {
+  cardMedia: {
+    flex: 1,
     width: '100%',
   },
   imagePlaceholder: {
@@ -872,6 +867,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   inspireInner: {
+    flex: 1,
     backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
