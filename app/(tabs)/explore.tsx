@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -196,6 +197,7 @@ export default function InspireScreen() {
   const [step, setStep] = useState<string>('start');
   const [breadcrumbs, setBreadcrumbs] = useState<string[]>([]);
   const [result, setResult] = useState<any>(null);
+  const [helped, setHelped] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const currentStep = (flow as any)[step];
@@ -221,6 +223,7 @@ export default function InspireScreen() {
       setStep('start');
       setBreadcrumbs([]);
       setResult(null);
+      setHelped(false);
       Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     });
   };
@@ -289,13 +292,11 @@ export default function InspireScreen() {
                 </View>
                 <Text style={styles.storyText}>{result.story.text}</Text>
                 <View style={styles.storyActions}>
-                  <TouchableOpacity style={styles.storyActionBtn}>
-                    <Text style={styles.storyActionIcon}>🙂</Text>
-                    <Text style={styles.storyActionText}>This helped</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.storyActionBtn}>
-                    <Text style={styles.storyActionIcon}>↗</Text>
-                    <Text style={styles.storyActionText}>Share</Text>
+                  <TouchableOpacity style={styles.storyActionBtn} onPress={() => setHelped(h => !h)}>
+                    <Text style={styles.storyActionIcon}>{helped ? '😊' : '🙂'}</Text>
+                    <Text style={[styles.storyActionText, helped && styles.storyActionTextActive]}>
+                      {helped ? 'This helped me' : 'This helped'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -307,7 +308,7 @@ export default function InspireScreen() {
               <View style={styles.ugcPrompt}>
                 <Text style={styles.ugcTitle}>Have you been through something similar?</Text>
                 <Text style={styles.ugcText}>Your story could be exactly what someone else needs to hear today.</Text>
-                <TouchableOpacity style={styles.ugcBtn}>
+                <TouchableOpacity style={styles.ugcBtn} onPress={() => router.push('/(tabs)/create')}>
                   <Text style={styles.ugcBtnText}>Share your story</Text>
                 </TouchableOpacity>
               </View>
@@ -355,6 +356,7 @@ const styles = StyleSheet.create({
   storyActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   storyActionIcon: { fontSize: 18 },
   storyActionText: { fontSize: 13, color: '#888888' },
+  storyActionTextActive: { color: '#FFC300', fontWeight: '600' },
   resetBtn: { backgroundColor: '#111111', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#333333', marginBottom: 20 },
   resetBtnText: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
   ugcPrompt: { backgroundColor: '#1A1400', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#FFC300' },

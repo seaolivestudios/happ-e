@@ -1,6 +1,7 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import { api } from '../api';
+import { api, uploadMedia } from '../api';
 import { getToken } from '../auth';
 
 const API = 'https://happe-backend-production.up.railway.app';
@@ -34,6 +35,8 @@ export default function ProfileScreen() {
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [posts, setPosts] = useState(0);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
@@ -65,6 +68,7 @@ export default function ProfileScreen() {
         setCategory(data.user.category || '');
         setLocation(data.user.location || '');
         setWebsite(data.user.website || '');
+        setAvatarUrl(data.user.avatar_url || null);
         setPosts(data.user.posts || 0);
         setFollowers(data.user.followers || 0);
         setFollowing(data.user.following || 0);
@@ -81,6 +85,37 @@ export default function ProfileScreen() {
       setLocation('Florida, US');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to change your profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    try {
+      setAvatarUploading(true);
+      const url = await uploadMedia(result.assets[0].uri, 'image');
+      setAvatarUrl(url);
+      const token = await getToken();
+      await fetch(`${API}/profile/me`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, bio, category, location, website, avatar_url: url }),
+      });
+    } catch {
+      Alert.alert('Upload failed', 'Could not update your profile photo.');
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -109,6 +144,7 @@ export default function ProfileScreen() {
           location: editLocation,
           website: editWebsite,
           category: editCategory,
+          avatar_url: avatarUrl,
         }),
       });
       const data = await res.json();
@@ -175,12 +211,25 @@ export default function ProfileScreen() {
 
       <ScrollView style={styles.body}>
         <View style={styles.avatarSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{name.charAt(0)}</Text>
-          </View>
+          <TouchableOpacity onPress={editing ? pickAvatar : undefined} activeOpacity={editing ? 0.7 : 1}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{name.charAt(0)}</Text>
+              </View>
+            )}
+            {editing && (
+              <View style={styles.avatarOverlay}>
+                {avatarUploading
+                  ? <ActivityIndicator color="#FFC300" size="small" />
+                  : <Text style={styles.avatarOverlayText}>Edit</Text>}
+              </View>
+            )}
+          </TouchableOpacity>
           {editing && (
-            <TouchableOpacity style={styles.changePhotoBtn}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
+            <TouchableOpacity style={styles.changePhotoBtn} onPress={pickAvatar} disabled={avatarUploading}>
+              <Text style={styles.changePhotoText}>{avatarUploading ? 'Uploading...' : 'Change Photo'}</Text>
             </TouchableOpacity>
           )}
           {!editing && (
@@ -343,6 +392,9 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   avatarSection: { alignItems: 'center', paddingVertical: 24, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A' },
   avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  avatarImg: { width: 88, height: 88, borderRadius: 44, marginBottom: 12, borderWidth: 2, borderColor: '#FFC300' },
+  avatarOverlay: { position: 'absolute', bottom: 12, left: 0, right: 0, height: 28, backgroundColor: 'rgba(0,0,0,0.55)', borderBottomLeftRadius: 44, borderBottomRightRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  avatarOverlayText: { fontSize: 11, color: '#FFC300', fontWeight: '700' },
   avatarText: { fontSize: 38, fontWeight: 'bold', color: '#000000' },
   changePhotoBtn: { marginTop: 4 },
   changePhotoText: { fontSize: 14, color: '#FFC300', fontWeight: '600' },

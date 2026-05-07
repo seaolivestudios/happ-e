@@ -34,6 +34,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Happ-E needs access to your photos so you can share your creativity.",
+          "cameraPermission": "Happ-E needs access to your camera so you can capture and share moments."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/App_Icon.png",

@@ -12,6 +12,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -43,6 +44,7 @@ type ApiPost = {
   author_quote?: string | null;
   category?: string | null;
   created_at?: string | null;
+  avatar_url?: string | null;
 };
 
 type Post = {
@@ -60,6 +62,7 @@ type Post = {
   author: string | null;
   category: string | null;
   createdAt: string;
+  avatarUrl: string | null;
 };
 
 const HEADER_HEIGHT = 75;
@@ -86,6 +89,7 @@ function normalizePost(raw: ApiPost): Post {
     author: raw.author_quote ?? null,
     category: raw.category ?? null,
     createdAt: raw.created_at ?? '',
+    avatarUrl: raw.avatar_url ?? null,
   };
 }
 
@@ -148,7 +152,7 @@ export default function HomeScreen() {
   const [menuMounted, setMenuMounted] = useState(false);
   const [currentPostId, setCurrentPostId] = useState('');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
@@ -170,6 +174,19 @@ export default function HomeScreen() {
     async function loadUser() {
       const user = await getUser();
       if (user) setCurrentUser(user);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch('https://happe-backend-production.up.railway.app/profile/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.user) {
+          setCurrentUser(prev => ({ ...prev, ...data.user }));
+        }
+      } catch {
+        // non-fatal
+      }
     }
     void loadUser();
   }, []);
@@ -457,6 +474,11 @@ export default function HomeScreen() {
             accessibilityLabel={`Share post from ${getDisplayName(post)}`}
             hitSlop={10}
             style={styles.actionBtn}
+            onPress={() => {
+              void Share.share({
+                message: `Check out this post on Happ-E!\nhttps://happe-backend-production.up.railway.app/posts/${post.id}`,
+              });
+            }}
           >
             <Ionicons
               name="share-outline"
@@ -509,6 +531,8 @@ export default function HomeScreen() {
             <View style={[styles.cardHeader, system && styles.cardHeaderSystem]}>
               {system ? (
                 <SystemAvatar />
+              ) : post.avatarUrl ? (
+                <Image source={{ uri: post.avatarUrl }} style={styles.avatarImg} />
               ) : (
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{getAvatarLetter(post)}</Text>
@@ -640,11 +664,15 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.menuUserRow}>
-              <View style={styles.menuAvatar}>
-                <Text style={styles.menuAvatarText}>
-                  {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
-                </Text>
-              </View>
+              {currentUser?.avatar_url ? (
+                <Image source={{ uri: currentUser.avatar_url }} style={styles.menuAvatarImg} />
+              ) : (
+                <View style={styles.menuAvatar}>
+                  <Text style={styles.menuAvatarText}>
+                    {currentUser?.name?.charAt(0).toUpperCase() ?? 'U'}
+                  </Text>
+                </View>
+              )}
               <View>
                 <Text style={styles.menuName}>{currentUser?.name ?? 'User'}</Text>
                 <Text style={styles.menuHandle}>{currentUser?.handle ? `@${currentUser.handle}` : currentUser?.email ?? ''}</Text>
@@ -905,6 +933,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   avatarText: {
     fontSize: 15,
     fontWeight: '700',
@@ -1054,6 +1087,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFC300',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  menuAvatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#FFC300',
   },
   menuAvatarText: {
     fontSize: 20,
