@@ -211,16 +211,16 @@ export default function PostDetailScreen() {
         ) : post.type === 'video' && post.video_url ? (
           <Video
             source={{ uri: post.video_url }}
-            style={[styles.media, post.widescreen ? styles.mediaWide : styles.mediaPortrait]}
+            style={[styles.media, styles.mediaPortrait]}
             resizeMode={ResizeMode.COVER}
-            shouldPlay={false}
+            shouldPlay
+            isMuted={false}
             isLooping
-            useNativeControls
           />
         ) : post.image_url ? (
           <Image
             source={{ uri: post.image_url }}
-            style={[styles.media, post.widescreen ? styles.mediaWide : styles.mediaPortrait]}
+            style={[styles.media, styles.mediaPortrait]}
             resizeMode="cover"
           />
         ) : null}
@@ -317,7 +317,6 @@ const styles = StyleSheet.create({
   categoryText: { fontSize: 12, color: '#FFC300', fontWeight: '600' },
   media: { width: '100%' },
   mediaPortrait: { aspectRatio: 4 / 5 },
-  mediaWide: { aspectRatio: 16 / 9 },
   inspireCard: { backgroundColor: '#111111', padding: 32, alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#222222' },
   inspireLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 2, marginBottom: 16 },
   inspireText: { fontSize: 20, color: '#FFFFFF', lineHeight: 30, fontStyle: 'italic', textAlign: 'center' },

@@ -51,7 +51,6 @@ export default function CreateScreen() {
   const [step, setStep] = useState<Step>('pick');
   const [mediaUri, setMediaUri] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
-  const [widescreen, setWidescreen] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
@@ -72,7 +71,7 @@ export default function CreateScreen() {
     setStep('pick');
     setMediaUri(null);
     setMediaType('image');
-    setWidescreen(false);
+
     setCaption('');
     setSelectedCategory('');
     setCategorySearch('');
@@ -157,7 +156,6 @@ export default function CreateScreen() {
         text: caption.trim(),
         image_url: mediaType === 'image' ? mediaUrl : undefined,
         video_url: mediaType === 'video' ? mediaUrl : undefined,
-        widescreen,
         category: selectedCategory,
       };
       const result = await api.createPost(payload, token ?? '');
@@ -252,7 +250,7 @@ export default function CreateScreen() {
 
         {/* Media preview */}
         <Pressable
-          style={[styles.preview, widescreen ? styles.previewWide : styles.previewPortrait]}
+          style={[styles.preview, styles.previewPortrait]}
           onPress={resetAll}
           disabled={loading}
         >
@@ -271,20 +269,6 @@ export default function CreateScreen() {
           <View style={styles.previewChangeOverlay}>
             <Ionicons name="swap-horizontal" size={16} color="#FFFFFF" />
             <Text style={styles.previewChangeText}>Change</Text>
-          </View>
-        </Pressable>
-
-        {/* Widescreen toggle */}
-        <Pressable style={styles.toggleRow} onPress={() => setWidescreen(w => !w)} disabled={loading}>
-          <View style={styles.toggleLeft}>
-            <Ionicons name="expand-outline" size={20} color="#FFC300" />
-            <View>
-              <Text style={styles.toggleTitle}>Horizontal View</Text>
-              <Text style={styles.toggleSub}>Show as a widescreen 16:9 card in the feed</Text>
-            </View>
-          </View>
-          <View style={[styles.toggle, widescreen && styles.toggleOn]}>
-            <View style={[styles.toggleThumb, widescreen && styles.toggleThumbOn]} />
           </View>
         </Pressable>
 
@@ -427,7 +411,6 @@ const styles = StyleSheet.create({
 
   preview: { borderRadius: 14, overflow: 'hidden', marginBottom: 4, position: 'relative', backgroundColor: '#111111' },
   previewPortrait: { aspectRatio: 4 / 5 },
-  previewWide: { aspectRatio: 16 / 9 },
   previewMedia: { width: '100%', height: '100%' },
   previewChangeOverlay: {
     position: 'absolute', bottom: 10, right: 10,
@@ -437,21 +420,7 @@ const styles = StyleSheet.create({
   },
   previewChangeText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
 
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#111111', borderRadius: 14, padding: 14, marginBottom: 16,
-    borderWidth: 1, borderColor: '#222222',
-  },
-  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  toggleTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  toggleSub: { fontSize: 12, color: '#888888', marginTop: 2 },
-  toggle: {
-    width: 44, height: 26, borderRadius: 13,
-    backgroundColor: '#333333', justifyContent: 'center', padding: 2,
-  },
-  toggleOn: { backgroundColor: '#FFC300' },
-  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFFFFF' },
-  toggleThumbOn: { transform: [{ translateX: 18 }] },
+
 
   captionRow: { flexDirection: 'row', gap: 12, marginBottom: 4, alignItems: 'flex-start' },
   avatar: { width: 36, height: 36, borderRadius: 18, flexShrink: 0 },
