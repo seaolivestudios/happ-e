@@ -17,7 +17,7 @@ export const uploadMedia = async (uri: string, type: 'image' | 'video'): Promise
   );
 
   const data = await response.json();
-  if (!data.secure_url) throw new Error(data.error?.message ?? 'Upload failed');
+  if (!data.secure_url) throw new Error(data.error?.message ?? `Upload failed (HTTP ${response.status})`);
   return data.secure_url;
 };
 

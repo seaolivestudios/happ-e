@@ -1,8 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 import { api, uploadMedia } from '../api';
 import { getToken } from '../auth';
+import { INTEREST_CATEGORIES, getEmojiByLabel } from '../interests';
 
 const API = 'https://happe-backend-production.up.railway.app';
 
@@ -48,6 +52,12 @@ export default function ProfileScreen() {
   const [editCategory, setEditCategory] = useState('');
   const [categoryModal, setCategoryModal] = useState(false);
 
+  const [interests, setInterests] = useState<string[]>([]);
+  const [interestsOverlayVisible, setInterestsOverlayVisible] = useState(false);
+  const [editInterests, setEditInterests] = useState<string[]>([]);
+  const [interestsSaving, setInterestsSaving] = useState(false);
+  const [interestsLoading, setInterestsLoading] = useState(false);
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -69,6 +79,12 @@ export default function ProfileScreen() {
         setLocation(data.user.location || '');
         setWebsite(data.user.website || '');
         setAvatarUrl(data.user.avatar_url || null);
+        // load interests separately
+        try {
+          const token2 = await getToken();
+          const iRes = await api.getMyInterests(token2 ?? '');
+          if (Array.isArray(iRes.interests)) setInterests(iRes.interests);
+        } catch { /* non-fatal */ }
         setPosts(data.user.posts || 0);
         setFollowers(data.user.followers || 0);
         setFollowing(data.user.following || 0);
@@ -112,8 +128,9 @@ export default function ProfileScreen() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name, bio, category, location, website, avatar_url: url }),
       });
-    } catch {
-      Alert.alert('Upload failed', 'Could not update your profile photo.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not update your profile photo.';
+      Alert.alert('Upload failed', msg);
     } finally {
       setAvatarUploading(false);
     }
@@ -180,6 +197,32 @@ export default function ProfileScreen() {
 
   const cancelEdit = () => setEditing(false);
 
+  const openInterestsEdit = () => {
+    setEditInterests([...interests]);
+    setInterestsOverlayVisible(true);
+  };
+
+  const toggleInterest = (label: string) => {
+    setEditInterests(prev =>
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const saveInterests = async () => {
+    if (editInterests.length < 3) return;
+    try {
+      setInterestsSaving(true);
+      const token = await getToken();
+      await api.updateInterests(editInterests, token ?? '');
+      setInterests(editInterests);
+      setInterestsOverlayVisible(false);
+    } catch {
+      Alert.alert('Error', 'Could not save interests.');
+    } finally {
+      setInterestsSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -199,11 +242,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         ) : (
           <View style={styles.editActions}>
-            <TouchableOpacity onPress={cancelEdit}>
-              <Text style={styles.cancelText}>Cancel</Text>
+            <TouchableOpacity onPress={cancelEdit} hitSlop={10}>
+              <Ionicons name="close" size={24} color="#888888" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={saveEdit} style={styles.saveBtn} disabled={saving}>
-              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
+            <TouchableOpacity onPress={saveEdit} disabled={saving} hitSlop={10} style={styles.saveIconBtn}>
+              {saving
+                ? <ActivityIndicator size="small" color="#000000" />
+                : <Ionicons name="checkmark" size={22} color="#000000" />}
             </TouchableOpacity>
           </View>
         )}
@@ -315,6 +360,29 @@ export default function ProfileScreen() {
               <Text style={styles.verifiedSub}>Identity confirmed · No bots here</Text>
             </View>
 
+            <View style={styles.interestsSect}>
+              <View style={styles.interestsSectHeader}>
+                <Text style={styles.interestsSectTitle}>My Interests</Text>
+                <TouchableOpacity onPress={openInterestsEdit}>
+                  <Text style={styles.interestsEditLink}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+              {interests.length > 0 ? (
+                <View style={styles.interestsChips}>
+                  {interests.map(label => (
+                    <View key={label} style={styles.interestPill}>
+                      <Text style={styles.interestPillEmoji}>{getEmojiByLabel(label)}</Text>
+                      <Text style={styles.interestPillLabel}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <TouchableOpacity onPress={openInterestsEdit} style={styles.interestsEmpty}>
+                  <Text style={styles.interestsEmptyText}>+ Add your interests</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <View style={styles.postsGrid}>
               <Text style={styles.postsGridLabel}>Posts</Text>
               {myPosts.length === 0 ? (
@@ -348,7 +416,7 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={categoryModal} transparent animationType="slide" onRequestClose={() => setCategoryModal(false)}>
+      {categoryModal && (
         <View style={styles.modalContainer}>
           <TouchableOpacity style={styles.modalOverlay} onPress={() => setCategoryModal(false)} />
           <View style={styles.modalBox}>
@@ -372,7 +440,55 @@ export default function ProfileScreen() {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      )}
+
+      {interestsOverlayVisible && (
+        <View style={styles.interestsOverlay}>
+          <View style={styles.interestsOverlayHeader}>
+            <TouchableOpacity onPress={() => setInterestsOverlayVisible(false)} hitSlop={10}>
+              <Ionicons name="close" size={24} color="#888888" />
+            </TouchableOpacity>
+            <Text style={styles.interestsOverlayTitle}>My Interests</Text>
+            <TouchableOpacity
+              onPress={saveInterests}
+              disabled={interestsSaving || editInterests.length < 3}
+              hitSlop={10}
+            >
+              {interestsSaving
+                ? <ActivityIndicator size="small" color="#FFC300" />
+                : <Ionicons name="checkmark" size={24} color={editInterests.length < 3 ? '#444444' : '#FFC300'} />}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.interestsOverlaySubtitle}>
+            {editInterests.length} selected{editInterests.length < 3 ? ` — pick ${3 - editInterests.length} more` : ''}
+          </Text>
+          <ScrollView contentContainerStyle={styles.interestsOverlayScroll}>
+            {INTEREST_CATEGORIES.map(section => (
+              <View key={section.heading}>
+                <Text style={styles.interestsOverlaySectionHeading}>{section.heading}</Text>
+                <View style={styles.interestsOverlayGrid}>
+                  {section.items.map(item => {
+                    const active = editInterests.includes(item.label);
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.interestsOverlayChip, active && styles.interestsOverlayChipActive]}
+                        onPress={() => toggleInterest(item.label)}
+                      >
+                        <Text style={styles.interestsOverlayChipEmoji}>{item.emoji}</Text>
+                        <Text style={[styles.interestsOverlayChipLabel, active && styles.interestsOverlayChipLabelActive]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
@@ -386,9 +502,7 @@ const styles = StyleSheet.create({
   editBtn: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
   editBtnText: { fontSize: 13, fontWeight: '700', color: '#000000' },
   editActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  cancelText: { fontSize: 14, color: '#888888' },
-  saveBtn: { backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6 },
-  saveBtnText: { fontSize: 13, fontWeight: '700', color: '#000000' },
+  saveIconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },
   avatarSection: { alignItems: 'center', paddingVertical: 24, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A' },
   avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
@@ -437,7 +551,7 @@ const styles = StyleSheet.create({
   gridInspireText: { fontSize: 9, color: '#FFC300', textAlign: 'center', fontStyle: 'italic', lineHeight: 13 },
   gridSmiles: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },
   gridSmilesText: { fontSize: 10, color: '#FFFFFF', fontWeight: '600' },
-  modalContainer: { flex: 1, justifyContent: 'flex-end' },
+  modalContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', zIndex: 999 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   modalBox: { backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 2, borderTopColor: '#FFC300', padding: 20, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -448,4 +562,30 @@ const styles = StyleSheet.create({
   categoryOptionText: { fontSize: 15, color: '#FFFFFF' },
   categoryOptionTextActive: { color: '#FFC300', fontWeight: '700' },
   categoryCheck: { fontSize: 16, color: '#FFC300' },
+
+  // Interests section (profile view)
+  interestsSect: { backgroundColor: '#111111', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#222222' },
+  interestsSectHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  interestsSectTitle: { fontSize: 12, fontWeight: '700', color: '#FFC300', letterSpacing: 1 },
+  interestsEditLink: { fontSize: 13, color: '#FFC300', fontWeight: '600' },
+  interestsChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  interestPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#1A1A1A', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: '#333333' },
+  interestPillEmoji: { fontSize: 14 },
+  interestPillLabel: { fontSize: 12, color: '#FFFFFF', fontWeight: '500' },
+  interestsEmpty: { paddingVertical: 12, alignItems: 'center' },
+  interestsEmptyText: { fontSize: 14, color: '#FFC300', fontWeight: '600' },
+
+  // Interests overlay
+  interestsOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000000', zIndex: 999 },
+  interestsOverlayHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
+  interestsOverlayTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  interestsOverlaySubtitle: { fontSize: 13, color: '#888888', textAlign: 'center', paddingVertical: 12 },
+  interestsOverlayScroll: { paddingHorizontal: 16, paddingTop: 8 },
+  interestsOverlaySectionHeading: { fontSize: 13, fontWeight: '700', color: '#FFC300', letterSpacing: 1, marginBottom: 12, marginTop: 20 },
+  interestsOverlayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  interestsOverlayChip: { backgroundColor: '#111111', borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#333333', width: (screenWidth - 52) / 3 },
+  interestsOverlayChipActive: { backgroundColor: '#FFC300', borderColor: '#FFC300' },
+  interestsOverlayChipEmoji: { fontSize: 22, marginBottom: 4 },
+  interestsOverlayChipLabel: { fontSize: 11, color: '#888888', fontWeight: '600', textAlign: 'center' },
+  interestsOverlayChipLabelActive: { color: '#000000' },
 });

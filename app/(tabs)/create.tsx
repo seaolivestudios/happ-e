@@ -165,8 +165,9 @@ export default function CreateScreen() {
       } else {
         Alert.alert('Error', result.error || 'Something went wrong.');
       }
-    } catch {
-      Alert.alert('Error', 'Could not upload your post. Check your connection.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not upload your post.';
+      Alert.alert('Upload error', msg);
     } finally {
       setLoading(false);
     }
@@ -242,7 +243,7 @@ export default function CreateScreen() {
         <Pressable onPress={handlePost} disabled={loading} style={styles.shareBtn}>
           {loading
             ? <ActivityIndicator color="#000000" size="small" />
-            : <Text style={styles.shareBtnText}>Share</Text>}
+            : <Ionicons name="send" size={18} color="#000000" />}
         </Pressable>
       </View>
 
@@ -387,8 +388,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFC300', borderRadius: 20,
     paddingHorizontal: 18, paddingVertical: 7, width: 60, alignItems: 'center',
   },
-  shareBtnText: { fontSize: 14, fontWeight: '700', color: '#000000' },
-
   // Pick step
   pickBody: { flex: 1, padding: 24, justifyContent: 'center', gap: 16 },
   pickPrompt: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginBottom: 8 },
