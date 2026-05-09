@@ -42,8 +42,19 @@ export const api = {
   },
 
   // Posts
-  getPosts: async (token: string) => {
-    const response = await fetch(`${API_URL}/posts`, {
+  getPosts: async (token: string, cursor?: string) => {
+    const params = new URLSearchParams();
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${API_URL}/posts?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  getTrendingPosts: async (token: string, cursor?: string) => {
+    const params = new URLSearchParams({ trending: 'true' });
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${API_URL}/posts?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.json();
@@ -57,8 +68,10 @@ export const api = {
     return response.json();
   },
 
-  getFollowingPosts: async (token: string) => {
-    const response = await fetch(`${API_URL}/posts?following=true`, {
+  getFollowingPosts: async (token: string, cursor?: string) => {
+    const params = new URLSearchParams({ following: 'true' });
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${API_URL}/posts?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.json();
@@ -132,8 +145,10 @@ export const api = {
     return response.json();
   },
 
-  getPostsForYou: async (token: string) => {
-    const response = await fetch(`${API_URL}/posts?mood=true`, {
+  getPostsForYou: async (token: string, cursor?: string) => {
+    const params = new URLSearchParams({ mood: 'true' });
+    if (cursor) params.set('cursor', cursor);
+    const response = await fetch(`${API_URL}/posts?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.json();

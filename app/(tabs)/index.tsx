@@ -1,6 +1,7 @@
 // app/(tabs)/index.tsx
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -160,9 +161,13 @@ export default function HomeScreen() {
   const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [feedMode, setFeedMode] = useState<'all' | 'following' | 'foryou'>('all');
+  const [feedMode, setFeedMode] = useState<'all' | 'following' | 'foryou' | 'trending'>('all');
   const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [feedError, setFeedError] = useState(false);
   const newestCreatedAtRef = useRef<string>('');
+  const nextCursorRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
@@ -221,29 +226,62 @@ export default function HomeScreen() {
   const loadPosts = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setIsLoadingPosts(true);
+    setFeedError(false);
+    nextCursorRef.current = null;
     try {
       const token = await getToken();
       const result = feedMode === 'following'
         ? await api.getFollowingPosts(token || '')
         : feedMode === 'foryou'
           ? await api.getPostsForYou(token || '')
-          : await api.getPosts(token || '');
+          : feedMode === 'trending'
+            ? await api.getTrendingPosts(token || '')
+            : await api.getPosts(token || '');
       const nextPosts: Post[] = Array.isArray(result?.posts)
         ? result.posts.map((raw: ApiPost) => normalizePost(raw))
         : [];
       setPosts(nextPosts);
+      setHasMore(result?.has_more ?? false);
+      nextCursorRef.current = result?.next_cursor ?? null;
       if (nextPosts.length > 0) {
         setCurrentPostId((prev) => prev || nextPosts[0].id);
         newestCreatedAtRef.current = nextPosts[0].createdAt;
       }
       if (isRefresh) setPendingPosts([]);
-    } catch (error) {
-      console.log('Could not load posts:', error);
+    } catch {
+      setFeedError(true);
     } finally {
       setIsLoadingPosts(false);
       setRefreshing(false);
     }
   }, [feedMode]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (loadingMore || !hasMore || !nextCursorRef.current || feedMode === 'trending') return;
+    setLoadingMore(true);
+    try {
+      const token = await getToken();
+      const cursor = nextCursorRef.current;
+      const result = feedMode === 'following'
+        ? await api.getFollowingPosts(token || '', cursor)
+        : feedMode === 'foryou'
+          ? await api.getPostsForYou(token || '', cursor)
+          : await api.getPosts(token || '', cursor);
+      const morePosts: Post[] = Array.isArray(result?.posts)
+        ? result.posts.map((raw: ApiPost) => normalizePost(raw))
+        : [];
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        return [...prev, ...morePosts.filter(p => !existingIds.has(p.id))];
+      });
+      setHasMore(result?.has_more ?? false);
+      nextCursorRef.current = result?.next_cursor ?? null;
+    } catch {
+      // non-fatal
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, feedMode]);
 
   useEffect(() => { void loadPosts(); }, [feedMode]);
 
@@ -396,6 +434,7 @@ export default function HomeScreen() {
         return;
       }
 
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setSmiledPosts((prev) => new Set(prev).add(id));
       setPosts((prev) =>
         prev.map((post) =>
@@ -432,6 +471,7 @@ export default function HomeScreen() {
       const trimmed = text.trim();
       if (!trimmed) return;
 
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       const myHandle = currentUser?.handle || '@me';
       setPosts((prev) =>
         prev.map((post) =>
@@ -702,14 +742,14 @@ export default function HomeScreen() {
         </View>
 
       <View style={styles.feedTabs}>
-        {(['all', 'following', 'foryou'] as const).map((mode) => (
+        {(['all', 'following', 'foryou', 'trending'] as const).map((mode) => (
           <Pressable
             key={mode}
             style={[styles.feedTab, feedMode === mode && styles.feedTabActive]}
-            onPress={() => { if (feedMode !== mode) { setPosts([]); setPendingPosts([]); setFeedMode(mode); } }}
+            onPress={() => { if (feedMode !== mode) { setPosts([]); setPendingPosts([]); setHasMore(true); setFeedMode(mode); } }}
           >
             <Text style={[styles.feedTabText, feedMode === mode && styles.feedTabTextActive]}>
-              {mode === 'all' ? 'All' : mode === 'following' ? 'Following' : 'For You'}
+              {mode === 'all' ? 'All' : mode === 'following' ? 'Following' : mode === 'foryou' ? 'For You' : '✦ Trending'}
             </Text>
           </Pressable>
         ))}
@@ -735,6 +775,21 @@ export default function HomeScreen() {
           <ActivityIndicator size="large" color="#FFC300" />
           <Text style={styles.loadingText}>Loading posts...</Text>
         </View>
+      ) : feedError ? (
+        <View style={styles.errorState}>
+          <Text style={styles.errorStateIcon}>⚡</Text>
+          <Text style={styles.errorStateText}>Couldn't load posts</Text>
+          <Text style={styles.errorStateSub}>Check your connection and try again</Text>
+          <Pressable style={styles.retryBtn} onPress={() => void loadPosts()}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : posts.length === 0 ? (
+        <View style={styles.errorState}>
+          <Text style={styles.errorStateIcon}>✦</Text>
+          <Text style={styles.errorStateText}>Nothing here yet</Text>
+          <Text style={styles.errorStateSub}>{feedMode === 'following' ? 'Follow people to see their posts here' : 'Be the first to share something'}</Text>
+        </View>
       ) : (
         <FlatList
           ref={portraitScrollRef}
@@ -753,6 +808,13 @@ export default function HomeScreen() {
               tintColor="#FFC300"
             />
           }
+          onEndReached={() => void loadMorePosts()}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={loadingMore ? (
+            <View style={styles.loadMoreFooter}>
+              <ActivityIndicator color="#FFC300" />
+            </View>
+          ) : null}
           onLayout={e => {
             const h = e.nativeEvent.layout.height;
             if (h > 0) setFeedHeight(h);
@@ -1025,6 +1087,13 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontWeight: '600',
   },
+  errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 40, backgroundColor: '#000000' },
+  errorStateIcon: { fontSize: 36, marginBottom: 4 },
+  errorStateText: { fontSize: 17, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' },
+  errorStateSub: { fontSize: 14, color: '#888888', textAlign: 'center', lineHeight: 20 },
+  retryBtn: { marginTop: 12, backgroundColor: '#FFC300', borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12 },
+  retryBtnText: { fontSize: 15, fontWeight: '700', color: '#000000' },
+  loadMoreFooter: { height: 60, alignItems: 'center', justifyContent: 'center' },
   feed: {
     flex: 1,
     backgroundColor: '#F7F7F7',

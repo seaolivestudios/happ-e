@@ -368,6 +368,18 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {(!avatarUrl || !bio || !category) && (
+              <TouchableOpacity style={styles.completionNudge} onPress={startEdit}>
+                <View style={styles.completionNudgeLeft}>
+                  <Text style={styles.completionNudgeTitle}>Complete your profile</Text>
+                  <Text style={styles.completionNudgeSub}>
+                    {[!avatarUrl && 'Add a photo', !bio && 'Write a bio', !category && 'Pick a category'].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <Text style={styles.completionNudgeArrow}>›</Text>
+              </TouchableOpacity>
+            )}
+
             <View style={styles.interestsSect}>
               <View style={styles.interestsSectHeader}>
                 <Text style={styles.interestsSectTitle}>My Interests</Text>
@@ -545,6 +557,11 @@ const styles = StyleSheet.create({
   infoRowIcon: { fontSize: 16 },
   infoRowText: { fontSize: 14, color: '#888888' },
   verifiedCard: { backgroundColor: '#111111', borderRadius: 16, padding: 16, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FFC300' },
+  completionNudge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1100', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#FFC300' },
+  completionNudgeLeft: { flex: 1 },
+  completionNudgeTitle: { fontSize: 14, fontWeight: '700', color: '#FFC300', marginBottom: 4 },
+  completionNudgeSub: { fontSize: 12, color: '#888888' },
+  completionNudgeArrow: { fontSize: 22, color: '#FFC300', marginLeft: 8 },
   verifiedText: { fontSize: 14, fontWeight: '700', color: '#FFC300', letterSpacing: 1 },
   verifiedSub: { fontSize: 12, color: '#888888', marginTop: 4 },
   postsGrid: { marginTop: 8 },

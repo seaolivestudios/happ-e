@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { api } from '../api';
 import { getToken, getUser } from '../auth';
 
@@ -108,6 +109,7 @@ export default function PostDetailScreen() {
 
   const handleSmile = useCallback(async () => {
     if (!post) return;
+    if (!smiled) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSmiled(prev => !prev);
     setSmileCount(prev => smiled ? Math.max(0, prev - 1) : prev + 1);
     try {
@@ -121,6 +123,7 @@ export default function PostDetailScreen() {
 
   const handleSendComment = useCallback(async () => {
     if (!post || !comment.trim()) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const text = comment.trim();
     setSending(true);
     const optimistic: DetailComment = {
@@ -172,8 +175,9 @@ export default function PostDetailScreen() {
     if (!post) return;
     try {
       await Share.share({
-        message: `Check out this post on Happ-E: happe://post/${post.id}`,
+        message: `${post.name} shared something on Happ-E ✦\n\nhappe://post/${post.id}`,
         url: `happe://post/${post.id}`,
+        title: 'Happ-E',
       });
     } catch {
       // user dismissed
@@ -417,9 +421,13 @@ export default function PostDetailScreen() {
               onLongPress={() => isMyComment && handleDeleteComment(c)}
               delayLongPress={400}
             >
-              <View style={styles.commentAvatar}>
-                <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
-              </View>
+              {(c as any).avatar_url ? (
+                <Image source={{ uri: (c as any).avatar_url }} style={styles.commentAvatarImg} />
+              ) : (
+                <View style={styles.commentAvatar}>
+                  <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
               <View style={styles.commentBody}>
                 <Text style={styles.commentName}>{c.name}</Text>
                 <Text style={styles.commentText}>{c.text}</Text>
@@ -501,6 +509,7 @@ const styles = StyleSheet.create({
   noComments: { fontSize: 14, color: '#555555', paddingHorizontal: 16 },
   commentRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
   commentAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  commentAvatarImg: { width: 32, height: 32, borderRadius: 16, flexShrink: 0 },
   commentAvatarText: { fontSize: 13, fontWeight: '700', color: '#FFC300' },
   commentBody: { flex: 1 },
   commentName: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2 },

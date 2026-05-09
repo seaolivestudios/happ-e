@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { api } from './api';
 import { getToken, getUser } from './auth';
 
@@ -159,6 +160,7 @@ export default function ChatScreen() {
   const handleSend = async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setText('');
     await sendMessage(trimmed);
   };

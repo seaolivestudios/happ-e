@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { api } from '../api';
 import { getToken, getUser } from '../auth';
 
@@ -91,6 +92,7 @@ export default function UserProfileScreen() {
   const handleFollow = async () => {
     const token = await getToken();
     if (!token || !user) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFollowLoading(true);
     const wasFollowing = isFollowing;
     setIsFollowing(!wasFollowing);
