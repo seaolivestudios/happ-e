@@ -49,6 +49,14 @@ export const api = {
     return response.json();
   },
 
+  getNewPosts: async (token: string, since: string) => {
+    const response = await fetch(
+      `${API_URL}/posts?since=${encodeURIComponent(since)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.json();
+  },
+
   getPostsByCategory: async (category: string) => {
     const response = await fetch(`${API_URL}/posts?category=${encodeURIComponent(category)}`);
     return response.json();

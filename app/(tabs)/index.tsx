@@ -159,6 +159,9 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
+  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const newestCreatedAtRef = useRef<string>('');
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
@@ -209,7 +212,9 @@ export default function HomeScreen() {
       setPosts(nextPosts);
       if (nextPosts.length > 0) {
         setCurrentPostId((prev) => prev || nextPosts[0].id);
+        newestCreatedAtRef.current = nextPosts[0].createdAt;
       }
+      if (isRefresh) setPendingPosts([]);
     } catch (error) {
       console.log('Could not load posts:', error);
     } finally {
@@ -220,6 +225,36 @@ export default function HomeScreen() {
 
   useEffect(() => { void loadPosts(); }, []);
 
+  useEffect(() => {
+    if (isLoadingPosts) return;
+
+    const poll = async () => {
+      const since = newestCreatedAtRef.current;
+      if (!since) return;
+      try {
+        const token = await getToken();
+        const result = await api.getNewPosts(token || '', since);
+        const fresh: Post[] = Array.isArray(result?.posts)
+          ? result.posts.map((raw: ApiPost) => normalizePost(raw))
+          : [];
+        if (fresh.length > 0) {
+          newestCreatedAtRef.current = fresh[0].createdAt;
+          setPendingPosts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const unique = fresh.filter(p => !existingIds.has(p.id));
+            return unique.length > 0 ? [...unique, ...prev] : prev;
+          });
+        }
+      } catch {
+        // silent — polling failure is non-fatal
+      }
+    };
+
+    pollIntervalRef.current = setInterval(() => { void poll(); }, 30_000);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, [isLoadingPosts]);
 
   const openMenu = useCallback(() => {
     menuAnim.setValue(-MENU_WIDTH);
@@ -638,6 +673,21 @@ export default function HomeScreen() {
             <Ionicons name="happy-outline" size={26} color="#FFC300" />
           </Pressable>
         </View>
+
+      {pendingPosts.length > 0 && (
+        <Pressable
+          style={styles.newPostsBanner}
+          onPress={() => {
+            setPosts(prev => [...pendingPosts, ...prev]);
+            setPendingPosts([]);
+            portraitScrollRef.current?.scrollToIndex({ index: 0, animated: true });
+          }}
+        >
+          <Text style={styles.newPostsBannerText}>
+            {pendingPosts.length === 1 ? '1 new post — tap to view' : `${pendingPosts.length} new posts — tap to view`}
+          </Text>
+        </Pressable>
+      )}
 
       {isLoadingPosts ? (
         <View style={styles.loadingState}>
@@ -1285,5 +1335,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
+  newPostsBanner: {
+    position: 'absolute',
+    top: HEADER_HEIGHT + 8,
+    left: 20,
+    right: 20,
+    zIndex: 5,
+    backgroundColor: '#FFC300',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  newPostsBannerText: {
+    color: '#000000',
+    fontWeight: '700',
+    fontSize: 13,
+  },
 });
