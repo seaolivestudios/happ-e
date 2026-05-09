@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Switch,
@@ -163,7 +164,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/subscription' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Subscription</Text>
                 <Text style={styles.rowSub}>Happ-E Monthly · $4.99/mo</Text>
@@ -241,7 +242,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/data-privacy' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Data & Privacy</Text>
                 <Text style={styles.rowSub}>How we use your data</Text>
@@ -249,7 +250,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/terms' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Terms of Service</Text>
                 <Text style={styles.rowSub}>Read our terms</Text>
@@ -257,7 +258,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/privacy-policy' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Privacy Policy</Text>
                 <Text style={styles.rowSub}>Read our privacy policy</Text>
@@ -270,15 +271,15 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => Linking.openURL('mailto:help@happe.com')}>
               <View>
                 <Text style={styles.rowLabel}>Help Center</Text>
-                <Text style={styles.rowSub}>Get help with Happ-E</Text>
+                <Text style={styles.rowSub}>Email help@happe.com</Text>
               </View>
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/report-problem' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Report a Problem</Text>
                 <Text style={styles.rowSub}>Let us know what's wrong</Text>
@@ -286,7 +287,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowArrow}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/community-guidelines' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Community Guidelines</Text>
                 <Text style={styles.rowSub}>What we stand for</Text>

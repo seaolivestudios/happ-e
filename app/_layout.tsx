@@ -58,6 +58,12 @@ export default function RootLayout() {
           <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="spark-respond" options={{ headerShown: false }} />
+          <Stack.Screen name="subscription" options={{ headerShown: false }} />
+          <Stack.Screen name="data-privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="terms" options={{ headerShown: false }} />
+          <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+          <Stack.Screen name="community-guidelines" options={{ headerShown: false }} />
+          <Stack.Screen name="report-problem" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="light" />
