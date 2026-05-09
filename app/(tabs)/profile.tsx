@@ -41,11 +41,13 @@ export default function ProfileScreen() {
   const [website, setWebsite] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [posts, setPosts] = useState(0);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
 
   const [editName, setEditName] = useState('');
+  const [editHandle, setEditHandle] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
@@ -79,6 +81,7 @@ export default function ProfileScreen() {
         setLocation(data.user.location || '');
         setWebsite(data.user.website || '');
         setAvatarUrl(data.user.avatar_url || null);
+        setVerified(data.user.verified ?? false);
         // load interests separately
         try {
           const token2 = await getToken();
@@ -138,6 +141,7 @@ export default function ProfileScreen() {
 
   const startEdit = () => {
     setEditName(name);
+    setEditHandle(handle);
     setEditBio(bio);
     setEditLocation(location);
     setEditWebsite(website);
@@ -149,24 +153,20 @@ export default function ProfileScreen() {
     try {
       setSaving(true);
       const token = await getToken();
-      const res = await fetch(`${API}/profile/me`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: editName,
-          bio: editBio,
-          location: editLocation,
-          website: editWebsite,
-          category: editCategory,
-          avatar_url: avatarUrl,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
+      const payload: Record<string, string> = {
+        name: editName,
+        bio: editBio,
+        location: editLocation,
+        website: editWebsite,
+        category: editCategory,
+        avatar_url: avatarUrl ?? '',
+      };
+      const normalizedHandle = editHandle.startsWith('@') ? editHandle : `@${editHandle}`;
+      if (normalizedHandle !== handle) payload.handle = normalizedHandle;
+      const res = await api.updateProfile(payload as any, token ?? '');
+      if (res.success) {
         setName(editName);
+        if (payload.handle) setHandle(normalizedHandle);
         setBio(editBio);
         setLocation(editLocation);
         setWebsite(editWebsite);
@@ -174,22 +174,10 @@ export default function ProfileScreen() {
         setEditing(false);
         Alert.alert('Saved', 'Your profile has been updated.');
       } else {
-        // Save locally even if backend fails
-        setName(editName);
-        setBio(editBio);
-        setLocation(editLocation);
-        setWebsite(editWebsite);
-        setCategory(editCategory);
-        setEditing(false);
+        Alert.alert('Error', res.error ?? 'Could not save profile.');
       }
-    } catch (err) {
-      // Save locally even if backend is unreachable
-      setName(editName);
-      setBio(editBio);
-      setLocation(editLocation);
-      setWebsite(editWebsite);
-      setCategory(editCategory);
-      setEditing(false);
+    } catch {
+      Alert.alert('Error', 'Could not connect to server.');
     } finally {
       setSaving(false);
     }
@@ -297,6 +285,18 @@ export default function ProfileScreen() {
               <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#888888" maxLength={50} />
             </View>
             <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Handle</Text>
+              <TextInput
+                style={styles.input}
+                value={editHandle}
+                onChangeText={v => setEditHandle(v.startsWith('@') ? v : `@${v}`)}
+                placeholderTextColor="#888888"
+                placeholder="@yourhandle"
+                autoCapitalize="none"
+                maxLength={30}
+              />
+            </View>
+            <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Bio</Text>
               <TextInput style={[styles.input, styles.bioInput]} value={editBio} onChangeText={setEditBio} placeholderTextColor="#888888" multiline maxLength={150} />
               <Text style={styles.charCount}>{150 - editBio.length} characters remaining</Text>
@@ -355,10 +355,12 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            <View style={styles.verifiedCard}>
-              <Text style={styles.verifiedText}>✦ Verified Real Person</Text>
-              <Text style={styles.verifiedSub}>Identity confirmed · No bots here</Text>
-            </View>
+            {verified && (
+              <View style={styles.verifiedCard}>
+                <Text style={styles.verifiedText}>✦ Verified Real Person</Text>
+                <Text style={styles.verifiedSub}>Identity confirmed · No bots here</Text>
+              </View>
+            )}
 
             <View style={styles.interestsSect}>
               <View style={styles.interestsSectHeader}>

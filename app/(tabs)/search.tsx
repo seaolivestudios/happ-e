@@ -152,6 +152,7 @@ export default function SearchScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [postResults, setPostResults] = useState<DiscoverPost[]>([]);
   const [discoverPosts, setDiscoverPosts] = useState<DiscoverPost[]>([]);
   const [forYouPosts, setForYouPosts] = useState<DiscoverPost[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
@@ -279,11 +280,15 @@ export default function SearchScreen() {
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     const q = query.trim();
-    if (!q) { setSearchResults([]); return; }
+    if (!q) { setSearchResults([]); setPostResults([]); return; }
     searchTimeout.current = setTimeout(async () => {
       try {
-        const result = await api.searchUsers(q);
-        if (result.success) setSearchResults(result.users.map((u: any) => ({ ...u, id: String(u.id) })));
+        const [userRes, postRes] = await Promise.all([
+          api.searchUsers(q),
+          api.searchPosts(q),
+        ]);
+        if (userRes.success) setSearchResults(userRes.users.map((u: any) => ({ ...u, id: String(u.id) })));
+        if (postRes.success) setPostResults(postRes.posts.map((p: any) => ({ id: String(p.id), image_url: p.image_url, text: p.text, type: p.type, handle: p.handle })));
       } catch {}
     }, 300);
   }, [query]);
@@ -372,11 +377,21 @@ export default function SearchScreen() {
           </View>
         ) : isSearching ? (
           <View style={styles.searchResults}>
-            <Text style={styles.sectionLabel}>Results for "{query.trim()}"</Text>
-            {searchResults.length === 0
-              ? <Text style={styles.noResults}>No results found.</Text>
-              : searchResults.map(u => <UserRow key={u.id} user={u} onFollow={handleFollow} />)
-            }
+            {searchResults.length > 0 && (
+              <>
+                <Text style={styles.sectionLabel}>People</Text>
+                {searchResults.map(u => <UserRow key={u.id} user={u} onFollow={handleFollow} />)}
+              </>
+            )}
+            {postResults.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Posts</Text>
+                {renderGrid(postResults)}
+              </>
+            )}
+            {searchResults.length === 0 && postResults.length === 0 && (
+              <Text style={styles.noResults}>No results found for "{query.trim()}"</Text>
+            )}
           </View>
         ) : activeTab === 'discover' ? (
           <View style={{ paddingTop: 8 }}>

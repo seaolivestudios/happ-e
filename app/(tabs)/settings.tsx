@@ -44,10 +44,16 @@ export default function SettingsScreen() {
     });
   }, []);
 
-  const savePref = (key: keyof NotifPrefs, value: boolean) => {
+  const savePref = async (key: keyof NotifPrefs, value: boolean) => {
     const next = { ...prefs, [key]: value };
     setPrefs(next);
     SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(next));
+    try {
+      const token = await getToken();
+      await api.updateNotificationPrefs(next, token ?? '');
+    } catch {
+      // non-fatal — local state already updated
+    }
   };
 
   const handleLogout = () => {
@@ -234,7 +240,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.row}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/blocked-users' as any)}>
               <View>
                 <Text style={styles.rowLabel}>Blocked Users</Text>
                 <Text style={styles.rowSub}>Manage who you've blocked</Text>

@@ -58,6 +58,9 @@ export default function PostDetailScreen() {
   const [comment, setComment] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ name?: string; id?: string | number } | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -159,6 +162,25 @@ export default function PostDetailScreen() {
     ]);
   }, [post]);
 
+  const handleSaveEdit = useCallback(async () => {
+    if (!post || !editText.trim()) return;
+    setEditSaving(true);
+    try {
+      const token = await getToken();
+      const res = await api.editPost(post.id, editText.trim(), token ?? '');
+      if (res.success) {
+        setPost(prev => prev ? { ...prev, text: editText.trim() } : prev);
+        setEditMode(false);
+      } else {
+        Alert.alert('Error', res.error ?? 'Could not update post.');
+      }
+    } catch {
+      Alert.alert('Error', 'Something went wrong.');
+    } finally {
+      setEditSaving(false);
+    }
+  }, [post, editText]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -251,9 +273,30 @@ export default function PostDetailScreen() {
         ) : null}
 
         {/* Caption */}
-        {post.type !== 'inspire' && post.text ? (
-          <Text style={styles.caption}>{post.text}</Text>
-        ) : null}
+        {post.type !== 'inspire' && (
+          editMode ? (
+            <View style={styles.editBox}>
+              <TextInput
+                style={styles.editInput}
+                value={editText}
+                onChangeText={setEditText}
+                multiline
+                autoFocus
+                placeholderTextColor="#666666"
+              />
+              <View style={styles.editActions}>
+                <Pressable style={styles.editCancel} onPress={() => setEditMode(false)}>
+                  <Text style={styles.editCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={[styles.editSave, editSaving && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={editSaving}>
+                  <Text style={styles.editSaveText}>{editSaving ? 'Saving...' : 'Save'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : post.text ? (
+            <Text style={styles.caption}>{post.text}</Text>
+          ) : null
+        )}
 
         {/* Date */}
         <Text style={styles.date}>{formatDate(post.created_at)}</Text>
@@ -269,9 +312,19 @@ export default function PostDetailScreen() {
             <Text style={styles.actionCount}>{post.comments.length}</Text>
           </Pressable>
           {post.user_id && currentUser?.id && String(post.user_id) === String(currentUser.id) && (
-            <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete post">
-              <Ionicons name="trash-outline" size={22} color="#FF4444" />
-            </Pressable>
+            <>
+              <Pressable
+                style={[styles.actionBtn, styles.deleteBtn]}
+                onPress={() => { setEditText(post.text); setEditMode(true); }}
+                accessibilityRole="button"
+                accessibilityLabel="Edit post"
+              >
+                <Ionicons name="create-outline" size={22} color="#888888" />
+              </Pressable>
+              <Pressable style={styles.actionBtn} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete post">
+                <Ionicons name="trash-outline" size={22} color="#FF4444" />
+              </Pressable>
+            </>
           )}
         </View>
 
@@ -371,4 +424,11 @@ const styles = StyleSheet.create({
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
   deleteBtn: { marginLeft: 'auto' },
+  editBox: { paddingHorizontal: 16, paddingTop: 14 },
+  editInput: { backgroundColor: '#111111', borderRadius: 12, padding: 12, color: '#FFFFFF', fontSize: 15, lineHeight: 22, borderWidth: 1, borderColor: '#333333', minHeight: 80 },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  editCancel: { flex: 1, borderWidth: 1, borderColor: '#333333', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  editCancelText: { color: '#888888', fontWeight: '600', fontSize: 14 },
+  editSave: { flex: 1, backgroundColor: '#FFC300', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  editSaveText: { color: '#000000', fontWeight: '700', fontSize: 14 },
 });

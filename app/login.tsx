@@ -4,12 +4,19 @@ import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Scroll
 import { api } from './api';
 import { saveSession } from './auth';
 
+type ForgotStep = 'idle' | 'email' | 'code';
+
 export default function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotStep, setForgotStep] = useState<ForgotStep>('idle');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -133,10 +140,98 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {isLogin && (
-            <TouchableOpacity style={styles.forgotBtn}>
+          {isLogin && forgotStep === 'idle' && (
+            <TouchableOpacity style={styles.forgotBtn} onPress={() => setForgotStep('email')}>
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
+          )}
+
+          {isLogin && forgotStep === 'email' && (
+            <View style={styles.resetBox}>
+              <Text style={styles.resetTitle}>Reset Password</Text>
+              <Text style={styles.resetSub}>Enter your email and we'll send a code.</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="your@email.com"
+                placeholderTextColor="#888888"
+                value={resetEmail}
+                onChangeText={setResetEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[styles.btn, { marginTop: 12 }, resetLoading && styles.btnDisabled]}
+                disabled={resetLoading}
+                onPress={async () => {
+                  if (!resetEmail) return;
+                  setResetLoading(true);
+                  try {
+                    const res = await api.forgotPassword(resetEmail);
+                    if (res.success) {
+                      setForgotStep('code');
+                    } else {
+                      Alert.alert('Error', res.error ?? 'Could not send code.');
+                    }
+                  } finally {
+                    setResetLoading(false);
+                  }
+                }}
+              >
+                <Text style={styles.btnText}>{resetLoading ? 'Sending...' : 'Send Code'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => setForgotStep('idle')}>
+                <Text style={styles.forgotText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isLogin && forgotStep === 'code' && (
+            <View style={styles.resetBox}>
+              <Text style={styles.resetTitle}>Enter Code</Text>
+              <Text style={styles.resetSub}>Check your email for the 6-digit code.</Text>
+              <TextInput
+                style={[styles.input, { marginBottom: 10 }]}
+                placeholder="Code"
+                placeholderTextColor="#888888"
+                value={resetCode}
+                onChangeText={setResetCode}
+                keyboardType="number-pad"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="New password"
+                placeholderTextColor="#888888"
+                value={resetPassword}
+                onChangeText={setResetPassword}
+                secureTextEntry
+              />
+              <TouchableOpacity
+                style={[styles.btn, { marginTop: 12 }, resetLoading && styles.btnDisabled]}
+                disabled={resetLoading}
+                onPress={async () => {
+                  if (!resetCode || !resetPassword) return;
+                  setResetLoading(true);
+                  try {
+                    const res = await api.resetPassword(resetEmail, resetCode, resetPassword);
+                    if (res.success) {
+                      Alert.alert('Done', 'Password updated. You can now sign in.');
+                      setForgotStep('idle');
+                      setResetCode('');
+                      setResetPassword('');
+                    } else {
+                      Alert.alert('Error', res.error ?? 'Invalid code or expired.');
+                    }
+                  } finally {
+                    setResetLoading(false);
+                  }
+                }}
+              >
+                <Text style={styles.btnText}>{resetLoading ? 'Updating...' : 'Update Password'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => setForgotStep('email')}>
+                <Text style={styles.forgotText}>Resend code</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -172,5 +267,8 @@ const styles = StyleSheet.create({
   btnText: { fontSize: 16, fontWeight: '700', color: '#000000' },
   forgotBtn: { alignItems: 'center', marginTop: 14 },
   forgotText: { fontSize: 13, color: '#888888' },
+  resetBox: { marginTop: 16, gap: 8 },
+  resetTitle: { fontSize: 15, fontWeight: '700', color: '#FFC300', marginBottom: 2 },
+  resetSub: { fontSize: 13, color: '#888888', marginBottom: 8 },
   footer: { fontSize: 11, color: '#444444', textAlign: 'center', marginTop: 24, lineHeight: 16 },
 });

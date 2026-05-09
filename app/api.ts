@@ -291,4 +291,83 @@ export const api = {
     });
     return response.json();
   },
+
+  // Forgot password
+  forgotPassword: async (email: string) => {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return response.json();
+  },
+
+  resetPassword: async (email: string, code: string, newPassword: string) => {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, newPassword }),
+    });
+    return response.json();
+  },
+
+  // Blocked users
+  blockUser: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/users/${userId}/block`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  unblockUser: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/users/${userId}/block`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  getBlockedUsers: async (token: string) => {
+    const response = await fetch(`${API_URL}/users/blocked`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  // Notification preferences
+  updateNotificationPrefs: async (prefs: { push: boolean; inspire: boolean; comments: boolean; likes: boolean }, token: string) => {
+    const response = await fetch(`${API_URL}/profile/me/notifications`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(prefs),
+    });
+    return response.json();
+  },
+
+  // Post editing
+  editPost: async (postId: string, text: string, token: string) => {
+    const response = await fetch(`${API_URL}/posts/${postId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+    });
+    return response.json();
+  },
+
+  // Post search
+  searchPosts: async (q: string) => {
+    const response = await fetch(`${API_URL}/posts/search?q=${encodeURIComponent(q)}`);
+    return response.json();
+  },
+
+  // Profile update with handle
+  updateProfile: async (data: { name: string; bio: string; category: string; location: string; website: string; avatar_url?: string; handle?: string }, token: string) => {
+    const response = await fetch(`${API_URL}/profile/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  },
 };

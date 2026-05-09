@@ -46,6 +46,7 @@ export default function UserProfileScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     void load();
@@ -71,8 +72,13 @@ export default function UserProfileScreen() {
         if (me && String(me.id) === String(profileRes.user.id)) {
           setIsOwnProfile(true);
         } else if (token) {
-          const followRes = await api.checkFollow(id, token);
+          const [followRes, blockedRes] = await Promise.all([
+            api.checkFollow(id, token),
+            api.getBlockedUsers(token),
+          ]);
           setIsFollowing(followRes.following ?? false);
+          const blockedIds = (blockedRes.blocked ?? []).map((u: any) => String(u.id));
+          setIsBlocked(blockedIds.includes(String(profileRes.user.id)));
         }
       }
     } catch {
@@ -182,6 +188,23 @@ export default function UserProfileScreen() {
               <Ionicons name="chatbubble-outline" size={18} color="#FFC300" />
               <Text style={styles.messageBtnText}>Message</Text>
             </Pressable>
+            <Pressable
+              style={styles.blockBtn}
+              onPress={async () => {
+                const token = await getToken();
+                if (!token) return;
+                if (isBlocked) {
+                  await api.unblockUser(user.id, token);
+                  setIsBlocked(false);
+                } else {
+                  await api.blockUser(user.id, token);
+                  setIsBlocked(true);
+                  setIsFollowing(false);
+                }
+              }}
+            >
+              <Ionicons name={isBlocked ? 'ban' : 'ban-outline'} size={18} color={isBlocked ? '#FF4444' : '#888888'} />
+            </Pressable>
           </View>
         )}
 
@@ -261,6 +284,7 @@ const styles = StyleSheet.create({
   followBtnTextActive: { color: '#FFC300' },
   messageBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, borderWidth: 1.5, borderColor: '#FFC300' },
   messageBtnText: { fontSize: 15, fontWeight: '600', color: '#FFC300' },
+  blockBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#333333', alignItems: 'center', justifyContent: 'center' },
   bioCard: { backgroundColor: '#111111', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#222222' },
   bioText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
