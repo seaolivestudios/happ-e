@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 import { api, uploadMedia } from '../api';
@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [posts, setPosts] = useState(0);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
@@ -64,9 +65,10 @@ export default function ProfileScreen() {
     loadProfile();
   }, []);
 
-  const loadProfile = async () => {
+  const loadProfile = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       const token = await getToken();
       const [profileRes, postsRes] = await Promise.all([
         fetch(`${API}/profile/me`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -104,6 +106,7 @@ export default function ProfileScreen() {
       setLocation('Florida, US');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -242,7 +245,10 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <ScrollView style={styles.body}>
+      <ScrollView
+        style={styles.body}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadProfile(true)} tintColor="#FFC300" />}
+      >
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={editing ? pickAvatar : undefined} activeOpacity={editing ? 0.7 : 1}>
             {avatarUrl ? (

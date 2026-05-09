@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -16,17 +17,35 @@ import {
 import { api } from './api';
 import { getToken, getUser } from './auth';
 
+const GIPHY_KEY = 'dc6zaTOxFJmzC';
+
+async function searchGifs(query: string) {
+  const url = query.trim()
+    ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=24&rating=g`
+    : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=24&rating=g`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return (data.data ?? []).map((g: any) => ({
+    id: g.id,
+    preview: g.images?.fixed_height_small?.url ?? g.images?.fixed_height?.url,
+    url: g.images?.fixed_height?.url ?? g.images?.original?.url,
+  }));
+}
+
 type Message = {
   id: string;
   sender_id: string;
   receiver_id: string;
   text: string;
+  gif_url: string | null;
   created_at: string;
   read: boolean;
   sender_name: string;
   sender_handle: string;
   sender_avatar: string | null;
 };
+
+type GifResult = { id: string; preview: string; url: string };
 
 function timeLabel(iso: string): string {
   const d = new Date(iso);
@@ -46,13 +65,20 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [myId, setMyId] = useState<string>('');
+  const [gifOpen, setGifOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifs, setGifs] = useState<GifResult[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const gifDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (mode: 'init' | 'silent' | 'refresh' = 'init') => {
+    if (mode === 'refresh') setRefreshing(true);
     try {
       const token = await getToken();
       const result = await api.getMessages(userId, token ?? '');
@@ -63,15 +89,16 @@ export default function ChatScreen() {
     } catch {
       // silent
     } finally {
-      if (!silent) setLoading(false);
+      if (mode === 'init') setLoading(false);
+      if (mode === 'refresh') setRefreshing(false);
     }
   }, [userId]);
 
   useEffect(() => {
     getUser().then(u => { if (u?.id) setMyId(String(u.id)); });
-    void load();
+    void load('init');
 
-    pollRef.current = setInterval(() => { void load(true); }, 10_000);
+    pollRef.current = setInterval(() => { void load('silent'); }, 10_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [load]);
 
@@ -81,17 +108,30 @@ export default function ChatScreen() {
     }
   }, [messages.length]);
 
-  const handleSend = async () => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
-    setText('');
-    setSending(true);
+  useEffect(() => {
+    if (!gifOpen) return;
+    if (gifDebounce.current) clearTimeout(gifDebounce.current);
+    gifDebounce.current = setTimeout(async () => {
+      setGifLoading(true);
+      try {
+        const results = await searchGifs(gifQuery);
+        setGifs(results);
+      } catch {
+        setGifs([]);
+      } finally {
+        setGifLoading(false);
+      }
+    }, 300);
+  }, [gifQuery, gifOpen]);
 
+  const sendMessage = async (msgText: string, gifUrl?: string) => {
+    setSending(true);
     const optimistic: Message = {
       id: `opt_${Date.now()}`,
       sender_id: myId,
       receiver_id: userId,
-      text: trimmed,
+      text: msgText,
+      gif_url: gifUrl ?? null,
       created_at: new Date().toISOString(),
       read: false,
       sender_name: '',
@@ -99,22 +139,34 @@ export default function ChatScreen() {
       sender_avatar: null,
     };
     setMessages(prev => [...prev, optimistic]);
-
     try {
       const token = await getToken();
-      const result = await api.sendMessage(userId, trimmed, token ?? '');
+      const result = await api.sendMessage(userId, msgText, token ?? '', gifUrl);
       if (result.success) {
         setMessages(prev => prev.map(m => m.id === optimistic.id ? { ...optimistic, id: String(result.message.id) } : m));
       } else {
         setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-        setText(trimmed);
+        if (!gifUrl) setText(msgText);
       }
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-      setText(trimmed);
+      if (!gifUrl) setText(msgText);
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+    setText('');
+    await sendMessage(trimmed);
+  };
+
+  const handleSendGif = async (gif: GifResult) => {
+    setGifOpen(false);
+    setGifQuery('');
+    await sendMessage('', gif.url);
   };
 
   return (
@@ -153,6 +205,7 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} tintColor="#FFC300" />}
           renderItem={({ item, index }) => {
             const isMe = item.sender_id === myId;
             const prev = index > 0 ? messages[index - 1] : null;
@@ -163,9 +216,13 @@ export default function ChatScreen() {
                   <Text style={styles.timeLabel}>{timeLabel(item.created_at)}</Text>
                 )}
                 <View style={[styles.bubbleRow, isMe && styles.bubbleRowMe]}>
-                  <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                    <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{item.text}</Text>
-                  </View>
+                  {item.gif_url ? (
+                    <Image source={{ uri: item.gif_url }} style={styles.gifBubble} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+                      <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{item.text}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             );
@@ -173,7 +230,45 @@ export default function ChatScreen() {
         />
       )}
 
+      {/* GIF picker */}
+      {gifOpen && (
+        <View style={styles.gifPanel}>
+          <View style={styles.gifSearchRow}>
+            <TextInput
+              style={styles.gifSearchInput}
+              placeholder="Search GIFs..."
+              placeholderTextColor="#555555"
+              value={gifQuery}
+              onChangeText={setGifQuery}
+              autoFocus
+              autoCapitalize="none"
+            />
+            <Pressable onPress={() => { setGifOpen(false); setGifQuery(''); }} hitSlop={8}>
+              <Ionicons name="close" size={22} color="#888888" />
+            </Pressable>
+          </View>
+          {gifLoading ? (
+            <ActivityIndicator color="#FFC300" style={{ marginTop: 20 }} />
+          ) : (
+            <FlatList
+              data={gifs}
+              keyExtractor={g => g.id}
+              numColumns={3}
+              contentContainerStyle={styles.gifGrid}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => handleSendGif(item)} style={styles.gifCell}>
+                  <Image source={{ uri: item.preview }} style={styles.gifThumb} resizeMode="cover" />
+                </Pressable>
+              )}
+            />
+          )}
+        </View>
+      )}
+
       <View style={styles.inputBar}>
+        <Pressable onPress={() => setGifOpen(v => !v)} style={styles.gifBtn}>
+          <Text style={styles.gifBtnText}>GIF</Text>
+        </Pressable>
         <TextInput
           style={styles.input}
           placeholder="Message..."
@@ -222,4 +317,13 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: '#111111', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: '#FFFFFF', fontSize: 15, borderWidth: 1, borderColor: '#222222', maxHeight: 120 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
+  gifBubble: { width: 200, height: 150, borderRadius: 12 },
+  gifBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: '#333333', alignItems: 'center', justifyContent: 'center' },
+  gifBtnText: { fontSize: 11, fontWeight: '800', color: '#FFC300', letterSpacing: 0.5 },
+  gifPanel: { backgroundColor: '#0A0A0A', borderTopWidth: 1, borderTopColor: '#1A1A1A', height: 320 },
+  gifSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, gap: 8, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' },
+  gifSearchInput: { flex: 1, backgroundColor: '#111111', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, color: '#FFFFFF', fontSize: 14, borderWidth: 1, borderColor: '#222222' },
+  gifGrid: { padding: 4 },
+  gifCell: { flex: 1, margin: 2, aspectRatio: 1, borderRadius: 6, overflow: 'hidden', backgroundColor: '#111111' },
+  gifThumb: { width: '100%', height: '100%' },
 });

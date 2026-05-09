@@ -86,11 +86,35 @@ export const api = {
     return response.json();
   },
 
-  sendMessage: async (userId: string, text: string, token: string) => {
+  sendMessage: async (userId: string, text: string, token: string, gif_url?: string) => {
     const response = await fetch(`${API_URL}/messages/${userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, gif_url }),
+    });
+    return response.json();
+  },
+
+  getUnreadMessageCount: async (token: string) => {
+    const response = await fetch(`${API_URL}/messages/unread-count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  deleteComment: async (postId: string, commentId: string, token: string) => {
+    const response = await fetch(`${API_URL}/posts/${postId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  reportPost: async (postId: string, reason: string, token: string) => {
+    const response = await fetch(`${API_URL}/posts/${postId}/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason }),
     });
     return response.json();
   },

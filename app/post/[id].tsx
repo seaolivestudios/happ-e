@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,8 @@ import { api } from '../api';
 import { getToken, getUser } from '../auth';
 
 type DetailComment = {
+  id?: string;
+  user_id?: string;
   name: string;
   handle: string;
   text: string;
@@ -61,7 +64,10 @@ export default function PostDetailScreen() {
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
+
+  const REPORT_REASONS = ['Inappropriate content', 'Spam', 'Bullying or harassment', 'Nudity', 'Misinformation', 'Other'];
 
   useEffect(() => {
     getUser().then(u => setCurrentUser(u));
@@ -89,7 +95,7 @@ export default function PostDetailScreen() {
           category: p.category ?? null,
           smile_count: parseInt(String(p.smile_count ?? 0), 10) || 0,
           created_at: p.created_at ?? '',
-          comments: Array.isArray(p.comments) ? p.comments : [],
+          comments: Array.isArray(p.comments) ? p.comments.map((c: any) => ({ ...c, id: c.id ? String(c.id) : undefined, user_id: c.user_id ? String(c.user_id) : undefined })) : [],
         });
         setSmileCount(parseInt(String(p.smile_count ?? 0), 10) || 0);
       }
@@ -156,6 +162,46 @@ export default function PostDetailScreen() {
             }
           } catch {
             Alert.alert('Error', 'Something went wrong.');
+          }
+        },
+      },
+    ]);
+  }, [post]);
+
+  const handleShare = useCallback(async () => {
+    if (!post) return;
+    try {
+      await Share.share({
+        message: `Check out this post on Happ-E: happe://post/${post.id}`,
+        url: `happe://post/${post.id}`,
+      });
+    } catch {
+      // user dismissed
+    }
+  }, [post]);
+
+  const handleReport = useCallback((reason: string) => {
+    setReportVisible(false);
+    Alert.alert('Report submitted', 'Thank you. Our team will review this post.', [{ text: 'OK' }]);
+    getToken().then(token => {
+      if (token && post) api.reportPost(post.id, reason, token).catch(() => {});
+    });
+  }, [post]);
+
+  const handleDeleteComment = useCallback((comment: DetailComment) => {
+    if (!post || !comment.id) return;
+    Alert.alert('Delete comment', 'Delete your comment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            await api.deleteComment(post.id, comment.id!, token ?? '');
+            setPost(prev => prev ? { ...prev, comments: prev.comments.filter(c => c.id !== comment.id) } : prev);
+          } catch {
+            Alert.alert('Error', 'Could not delete comment.');
           }
         },
       },
@@ -311,6 +357,14 @@ export default function PostDetailScreen() {
             <Ionicons name="chatbubble-outline" size={24} color="#888888" />
             <Text style={styles.actionCount}>{post.comments.length}</Text>
           </Pressable>
+          <Pressable style={styles.actionBtn} onPress={handleShare} accessibilityRole="button" accessibilityLabel="Share post">
+            <Ionicons name="share-outline" size={24} color="#888888" />
+          </Pressable>
+          {post.user_id && currentUser?.id && String(post.user_id) !== String(currentUser.id) && (
+            <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={() => setReportVisible(true)} accessibilityRole="button" accessibilityLabel="Report post">
+              <Ionicons name="flag-outline" size={22} color="#888888" />
+            </Pressable>
+          )}
           {post.user_id && currentUser?.id && String(post.user_id) === String(currentUser.id) && (
             <>
               <Pressable
@@ -328,6 +382,25 @@ export default function PostDetailScreen() {
           )}
         </View>
 
+        {/* Report modal */}
+        {reportVisible && (
+          <View style={styles.reportOverlay}>
+            <View style={styles.reportCard}>
+              <Text style={styles.reportTitle}>Report Post</Text>
+              <Text style={styles.reportSub}>Why are you reporting this?</Text>
+              {REPORT_REASONS.map(reason => (
+                <Pressable key={reason} style={styles.reportOption} onPress={() => handleReport(reason)}>
+                  <Text style={styles.reportOptionText}>{reason}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#555555" />
+                </Pressable>
+              ))}
+              <Pressable style={styles.reportCancel} onPress={() => setReportVisible(false)}>
+                <Text style={styles.reportCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         <View style={styles.divider} />
 
         {/* Comments */}
@@ -335,17 +408,30 @@ export default function PostDetailScreen() {
         {post.comments.length === 0 ? (
           <Text style={styles.noComments}>No comments yet. Be the first.</Text>
         ) : null}
-        {post.comments.map((c, i) => (
-          <View key={i} style={styles.commentRow}>
-            <View style={styles.commentAvatar}>
-              <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={styles.commentBody}>
-              <Text style={styles.commentName}>{c.name}</Text>
-              <Text style={styles.commentText}>{c.text}</Text>
-            </View>
-          </View>
-        ))}
+        {post.comments.map((c, i) => {
+          const isMyComment = c.user_id && currentUser?.id && String(c.user_id) === String(currentUser.id);
+          return (
+            <Pressable
+              key={c.id ?? i}
+              style={styles.commentRow}
+              onLongPress={() => isMyComment && handleDeleteComment(c)}
+              delayLongPress={400}
+            >
+              <View style={styles.commentAvatar}>
+                <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={styles.commentBody}>
+                <Text style={styles.commentName}>{c.name}</Text>
+                <Text style={styles.commentText}>{c.text}</Text>
+              </View>
+              {isMyComment && (
+                <Pressable onPress={() => handleDeleteComment(c)} hitSlop={8} style={styles.commentDeleteBtn}>
+                  <Ionicons name="trash-outline" size={14} color="#555555" />
+                </Pressable>
+              )}
+            </Pressable>
+          );
+        })}
 
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -431,4 +517,13 @@ const styles = StyleSheet.create({
   editCancelText: { color: '#888888', fontWeight: '600', fontSize: 14 },
   editSave: { flex: 1, backgroundColor: '#FFC300', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   editSaveText: { color: '#000000', fontWeight: '700', fontSize: 14 },
+  commentDeleteBtn: { paddingLeft: 8, alignSelf: 'center' },
+  reportOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 20, alignItems: 'center', justifyContent: 'flex-end' },
+  reportCard: { width: '100%', backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  reportTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginBottom: 4 },
+  reportSub: { fontSize: 13, color: '#888888', textAlign: 'center', marginBottom: 16 },
+  reportOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#222222' },
+  reportOptionText: { fontSize: 15, color: '#FFFFFF' },
+  reportCancel: { marginTop: 16, alignItems: 'center', paddingVertical: 14 },
+  reportCancelText: { fontSize: 15, fontWeight: '600', color: '#888888' },
 });

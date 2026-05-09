@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api';
 import { getToken } from '../auth';
 
@@ -56,12 +56,14 @@ function timeAgo(dateStr: string): string {
 export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     void loadNotifications();
   }, []);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
       const token = await getToken();
       const result = await api.getNotifications(token ?? '');
@@ -70,6 +72,7 @@ export default function NotificationsScreen() {
       // silently fail
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -113,7 +116,10 @@ export default function NotificationsScreen() {
           <ActivityIndicator color="#FFC300" />
         </View>
       ) : (
-        <ScrollView style={styles.list}>
+        <ScrollView
+          style={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadNotifications(true)} tintColor="#FFC300" />}
+        >
           {notifications.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="happy-outline" size={48} color="#333333" />

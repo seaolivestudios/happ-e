@@ -159,6 +159,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [feedMode, setFeedMode] = useState<'all' | 'following' | 'foryou'>('all');
   const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
   const newestCreatedAtRef = useRef<string>('');
@@ -179,6 +180,22 @@ export default function HomeScreen() {
       commentAnim.setValue(commentDrawerHiddenX);
     }
   }, [commentVisible, commentAnim, commentDrawerHiddenX]);
+
+  useEffect(() => {
+    const pollUnread = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await api.getUnreadMessageCount(token);
+        if (res.success) setUnreadMessages(res.count ?? 0);
+      } catch {
+        // non-fatal
+      }
+    };
+    void pollUnread();
+    const interval = setInterval(() => { void pollUnread(); }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     async function loadUser() {
@@ -660,6 +677,11 @@ export default function HomeScreen() {
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
             <View style={styles.hamburgerLine} />
+            {unreadMessages > 0 && (
+              <View style={styles.hamburgerBadge}>
+                <Text style={styles.hamburgerBadgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
+              </View>
+            )}
           </Pressable>
 
           <Image
@@ -788,10 +810,15 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Open messages"
               style={styles.menuItem}
-              onPress={() => navigateFromMenu('/messages' as any)}
+              onPress={() => { setUnreadMessages(0); navigateFromMenu('/messages' as any); }}
             >
               <Ionicons name="chatbubble-outline" size={22} color="#FFC300" />
               <Text style={styles.menuItemText}>Messages</Text>
+              {unreadMessages > 0 && (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
+                </View>
+              )}
             </Pressable>
 
             <Pressable
@@ -953,6 +980,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFC300',
     borderRadius: 3,
   },
+  hamburgerBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  hamburgerBadgeText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  menuBadge: {
+    marginLeft: 'auto',
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  menuBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
   logoImage: {
     width: 120,
     height: 44,
