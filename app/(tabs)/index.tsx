@@ -159,6 +159,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
+  const [feedMode, setFeedMode] = useState<'all' | 'following' | 'foryou'>('all');
   const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
   const newestCreatedAtRef = useRef<string>('');
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -205,7 +206,11 @@ export default function HomeScreen() {
     else setIsLoadingPosts(true);
     try {
       const token = await getToken();
-      const result = await api.getPosts(token || '');
+      const result = feedMode === 'following'
+        ? await api.getFollowingPosts(token || '')
+        : feedMode === 'foryou'
+          ? await api.getPostsForYou(token || '')
+          : await api.getPosts(token || '');
       const nextPosts: Post[] = Array.isArray(result?.posts)
         ? result.posts.map((raw: ApiPost) => normalizePost(raw))
         : [];
@@ -221,9 +226,9 @@ export default function HomeScreen() {
       setIsLoadingPosts(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [feedMode]);
 
-  useEffect(() => { void loadPosts(); }, []);
+  useEffect(() => { void loadPosts(); }, [feedMode]);
 
   useEffect(() => {
     if (isLoadingPosts) return;
@@ -674,6 +679,20 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+      <View style={styles.feedTabs}>
+        {(['all', 'following', 'foryou'] as const).map((mode) => (
+          <Pressable
+            key={mode}
+            style={[styles.feedTab, feedMode === mode && styles.feedTabActive]}
+            onPress={() => { if (feedMode !== mode) { setPosts([]); setPendingPosts([]); setFeedMode(mode); } }}
+          >
+            <Text style={[styles.feedTabText, feedMode === mode && styles.feedTabTextActive]}>
+              {mode === 'all' ? 'All' : mode === 'following' ? 'Following' : 'For You'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       {pendingPosts.length > 0 && (
         <Pressable
           style={styles.newPostsBanner}
@@ -764,6 +783,16 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.menuDivider} />
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open messages"
+              style={styles.menuItem}
+              onPress={() => navigateFromMenu('/messages' as any)}
+            >
+              <Ionicons name="chatbubble-outline" size={22} color="#FFC300" />
+              <Text style={styles.menuItemText}>Messages</Text>
+            </Pressable>
 
             <Pressable
               accessibilityRole="button"
@@ -1335,9 +1364,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  feedTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: '#000000',
+  },
+  feedTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  feedTabActive: {
+    backgroundColor: '#FFC300',
+    borderColor: '#FFC300',
+  },
+  feedTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#888888',
+  },
+  feedTabTextActive: {
+    color: '#000000',
+  },
   newPostsBanner: {
     position: 'absolute',
-    top: HEADER_HEIGHT + 8,
+    top: HEADER_HEIGHT + 52,
     left: 20,
     right: 20,
     zIndex: 5,

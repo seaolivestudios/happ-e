@@ -165,15 +165,24 @@ export default function UserProfileScreen() {
         </View>
 
         {!isOwnProfile && (
-          <Pressable
-            style={[styles.followBtn, isFollowing && styles.followBtnActive]}
-            onPress={handleFollow}
-            disabled={followLoading}
-          >
-            <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
-              {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable
+              style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+              onPress={handleFollow}
+              disabled={followLoading}
+            >
+              <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
+                {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.messageBtn}
+              onPress={() => router.push({ pathname: '/chat', params: { userId: user.id, name: user.name, handle: user.handle, avatar: user.avatar_url ?? '' } } as any)}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color="#FFC300" />
+              <Text style={styles.messageBtnText}>Message</Text>
+            </Pressable>
+          </View>
         )}
 
         {user.bio ? (
@@ -245,10 +254,13 @@ const styles = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center' },
   statNum: { fontSize: 22, fontWeight: 'bold', color: '#FFC300' },
   statLabel: { fontSize: 12, color: '#888888', marginTop: 2 },
-  followBtn: { backgroundColor: '#FFC300', borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginBottom: 16 },
+  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  followBtn: { flex: 1, backgroundColor: '#FFC300', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   followBtnActive: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#FFC300' },
   followBtnText: { fontSize: 15, fontWeight: '700', color: '#000000' },
   followBtnTextActive: { color: '#FFC300' },
+  messageBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, borderWidth: 1.5, borderColor: '#FFC300' },
+  messageBtnText: { fontSize: 15, fontWeight: '600', color: '#FFC300' },
   bioCard: { backgroundColor: '#111111', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#222222' },
   bioText: { fontSize: 14, color: '#FFFFFF', lineHeight: 20 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },

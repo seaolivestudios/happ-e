@@ -57,6 +57,52 @@ export const api = {
     return response.json();
   },
 
+  getFollowingPosts: async (token: string) => {
+    const response = await fetch(`${API_URL}/posts?following=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  deletePost: async (postId: string, token: string) => {
+    const response = await fetch(`${API_URL}/posts/${postId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  getConversations: async (token: string) => {
+    const response = await fetch(`${API_URL}/messages`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  getMessages: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/messages/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  sendMessage: async (userId: string, text: string, token: string) => {
+    const response = await fetch(`${API_URL}/messages/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text }),
+    });
+    return response.json();
+  },
+
+  markMessagesRead: async (userId: string, token: string) => {
+    const response = await fetch(`${API_URL}/messages/${userId}/read`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
   getPostsByCategory: async (category: string) => {
     const response = await fetch(`${API_URL}/posts?category=${encodeURIComponent(category)}`);
     return response.json();

@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -56,7 +57,7 @@ export default function PostDetailScreen() {
   const [smileCount, setSmileCount] = useState(0);
   const [comment, setComment] = useState('');
   const [sending, setSending] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ name?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ name?: string; id?: string | number } | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -133,6 +134,30 @@ export default function PostDetailScreen() {
       setSending(false);
     }
   }, [post, comment, currentUser]);
+
+  const handleDelete = useCallback(() => {
+    if (!post) return;
+    Alert.alert('Delete Post', 'This will permanently delete your post. This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            const result = await api.deletePost(post.id, token ?? '');
+            if (result.success) {
+              router.back();
+            } else {
+              Alert.alert('Error', result.error ?? 'Could not delete post.');
+            }
+          } catch {
+            Alert.alert('Error', 'Something went wrong.');
+          }
+        },
+      },
+    ]);
+  }, [post]);
 
   if (loading) {
     return (
@@ -243,6 +268,11 @@ export default function PostDetailScreen() {
             <Ionicons name="chatbubble-outline" size={24} color="#888888" />
             <Text style={styles.actionCount}>{post.comments.length}</Text>
           </Pressable>
+          {post.user_id && currentUser?.id && String(post.user_id) === String(currentUser.id) && (
+            <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete post">
+              <Ionicons name="trash-outline" size={22} color="#FF4444" />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -340,4 +370,5 @@ const styles = StyleSheet.create({
   input: { flex: 1, backgroundColor: '#111111', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: '#FFFFFF', fontSize: 14, borderWidth: 1, borderColor: '#222222' },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
+  deleteBtn: { marginLeft: 'auto' },
 });

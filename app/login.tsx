@@ -28,10 +28,10 @@ export default function LoginScreen() {
 
       if (result.success && result.token) {
         await saveSession(result.token, result.user);
-        if (isLogin) {
-          router.replace('/(tabs)' as any);
-        } else {
+        if (!isLogin || !result.user?.onboarded) {
           router.replace('/onboarding' as any);
+        } else {
+          router.replace('/(tabs)' as any);
         }
       } else {
         Alert.alert('Error', result.error || 'Something went wrong. Please try again.');
