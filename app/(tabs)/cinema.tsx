@@ -250,14 +250,13 @@ export default function CinemaScreen() {
         ref={flatListRef}
         data={posts}
         keyExtractor={(item) => item.id}
-        horizontal
         pagingEnabled
-        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         getItemLayout={(_, index) => ({
-          length: cardWidth,
-          offset: cardWidth * index,
+          length: cardHeight,
+          offset: cardHeight * index,
           index,
         })}
         renderItem={({ item, index }) => {
@@ -329,8 +328,8 @@ export default function CinemaScreen() {
               {/* Swipe hint on first card */}
               {index === 0 && posts.length > 1 && (
                 <View style={styles.swipeHint} pointerEvents="none">
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
-                  <Text style={styles.swipeHintText}>Swipe for next</Text>
+                  <Ionicons name="chevron-up" size={18} color="rgba(255,255,255,0.5)" />
+                  <Text style={styles.swipeHintText}>Swipe up for next</Text>
                 </View>
               )}
             </View>
@@ -477,8 +476,8 @@ const styles = StyleSheet.create({
   },
   swipeHint: {
     position: 'absolute',
-    right: 16,
-    top: '50%',
+    bottom: 56,
+    alignSelf: 'center',
     alignItems: 'center',
     gap: 4,
   },

@@ -841,7 +841,11 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.menuUserRow}>
+            <Pressable
+              style={styles.menuUserRow}
+              onPress={() => navigateFromMenu('/(tabs)/profile' as any)}
+              hitSlop={8}
+            >
               {currentUser?.avatar_url ? (
                 <Image source={{ uri: currentUser.avatar_url }} style={styles.menuAvatarImg} />
               ) : (
@@ -851,11 +855,12 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               )}
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.menuName}>{currentUser?.name ?? 'User'}</Text>
                 <Text style={styles.menuHandle}>{currentUser?.handle ? `@${currentUser.handle}` : currentUser?.email ?? ''}</Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color="#444444" />
+            </Pressable>
 
             <View style={styles.menuDivider} />
 
