@@ -9,16 +9,16 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-  "supportsTablet": true,
-  "bundleIdentifier": "com.seaolivestudios.happe",
-  "infoPlist": {
-    "ITSAppUsesNonExemptEncryption": false,
-    "NSPhotoLibraryUsageDescription": "Happ-E needs access to your photos so you can share your creativity.",
-    "NSCameraUsageDescription": "Happ-E needs access to your camera so you can capture and share moments.",
-    "NSMicrophoneUsageDescription": "Happ-E needs microphone access for video recording.",
-    "NSUserNotificationsUsageDescription": "Happ-E sends you notifications when someone smiles or comments on your posts."
-  }
-},
+      "supportsTablet": true,
+      "bundleIdentifier": "com.seaolivestudios.happe",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Happ-E needs access to your photos so you can share your creativity.",
+        "NSCameraUsageDescription": "Happ-E needs access to your camera so you can capture and share moments.",
+        "NSMicrophoneUsageDescription": "Happ-E needs microphone access for video recording.",
+        "NSUserNotificationsUsageDescription": "Happ-E sends you notifications when someone smiles or comments on your posts."
+      }
+    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/App_Icon.png",
@@ -56,7 +56,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#000000"
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true
