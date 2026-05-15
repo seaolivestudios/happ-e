@@ -14,6 +14,7 @@ import {
 import { api } from '../api';
 import { getToken } from '../auth';
 import { INTEREST_CATEGORIES, getEmojiByLabel } from '../interests';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 
 type User = {
   id: string;
@@ -345,6 +346,7 @@ export default function SearchScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
+            inputAccessoryViewID={KEYBOARD_DONE_ID}
           />
           {isSearching && (
             <Pressable onPress={() => setQuery('')} style={styles.clearBtn}>
@@ -489,6 +491,7 @@ export default function SearchScreen() {
           </View>
         )}
       </ScrollView>
+      <KeyboardDoneBar />
     </View>
   );
 }

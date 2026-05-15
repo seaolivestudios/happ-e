@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { getUser } from './auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from './components/KeyboardDoneBar';
 
 const CATEGORIES = ['Bug or crash', 'Inappropriate content', 'Account issue', 'Feature request', 'Other'];
 
@@ -51,6 +52,7 @@ export default function ReportProblemScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <KeyboardDoneBar />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#FFC300" />
@@ -91,6 +93,7 @@ export default function ReportProblemScreen() {
           value={subject}
           onChangeText={setSubject}
           maxLength={120}
+          inputAccessoryViewID={KEYBOARD_DONE_ID}
         />
 
         <Text style={styles.label}>Description</Text>
@@ -103,6 +106,7 @@ export default function ReportProblemScreen() {
           multiline
           numberOfLines={6}
           textAlignVertical="top"
+          inputAccessoryViewID={KEYBOARD_DONE_ID}
         />
 
         <Text style={styles.label}>Your email (optional)</Text>
@@ -114,6 +118,7 @@ export default function ReportProblemScreen() {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          inputAccessoryViewID={KEYBOARD_DONE_ID}
         />
 
         <Pressable

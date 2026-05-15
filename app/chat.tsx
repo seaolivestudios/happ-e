@@ -17,6 +17,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { api } from './api';
 import { getToken, getUser } from './auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from './components/KeyboardDoneBar';
 
 const GIPHY_KEY = 'dc6zaTOxFJmzC';
 
@@ -244,6 +245,7 @@ export default function ChatScreen() {
               onChangeText={setGifQuery}
               autoFocus
               autoCapitalize="none"
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
             <Pressable onPress={() => { setGifOpen(false); setGifQuery(''); }} hitSlop={8}>
               <Ionicons name="close" size={22} color="#888888" />
@@ -281,6 +283,7 @@ export default function ChatScreen() {
           returnKeyType="send"
           onSubmitEditing={handleSend}
           blurOnSubmit={false}
+          inputAccessoryViewID={KEYBOARD_DONE_ID}
         />
         <Pressable
           style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
@@ -290,6 +293,7 @@ export default function ChatScreen() {
           <Ionicons name="send" size={18} color="#000000" />
         </Pressable>
       </View>
+      <KeyboardDoneBar />
     </KeyboardAvoidingView>
   );
 }

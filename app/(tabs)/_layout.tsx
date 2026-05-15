@@ -15,11 +15,11 @@ type TabBarProps = {
 };
 
 const TABS = [
-  { name: 'index',   icon: 'home'   as const, label: 'Home'     },
-  { name: 'explore', icon: 'heart'  as const, label: 'Connect'  },
-  { name: 'create',  icon: null,              label: ''          },
-  { name: 'search',  icon: 'search' as const, label: 'Discover' },
-  { name: 'sparks',  icon: 'flash'  as const, label: 'Sparks'   },
+  { name: 'index',   icon: 'home'   as const, label: 'Home'    },
+  { name: 'explore', icon: 'heart'  as const, label: 'Connect' },
+  { name: 'create',  icon: null,              label: ''         },
+  { name: 'cinema',  icon: 'film'   as const, label: 'Cinema'  },
+  { name: 'sparks',  icon: 'flash'  as const, label: 'Sparks'  },
 ];
 
 const FEED_MODES: { mode: FeedMode; icon: string; label: string }[] = [
@@ -32,6 +32,9 @@ function CustomTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { feedMode, setMenuVisible } = useContext(FeedModeContext);
   const homeMeta = FEED_MODES.find(f => f.mode === feedMode) ?? FEED_MODES[0];
+
+  // Cinema tab is full-screen landscape — hide the tab bar entirely
+  if (state.routes[state.index].name === 'cinema') return null;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
@@ -110,8 +113,9 @@ export default function TabLayout() {
           <Tabs.Screen name="index"   options={{ unmountOnBlur: true } as object} />
           <Tabs.Screen name="explore" options={{ unmountOnBlur: true } as object} />
           <Tabs.Screen name="create"  options={{ unmountOnBlur: true } as object} />
-          <Tabs.Screen name="search"  options={{ unmountOnBlur: true } as object} />
+          <Tabs.Screen name="cinema"  options={{ unmountOnBlur: true } as object} />
           <Tabs.Screen name="sparks"  options={{ unmountOnBlur: true } as object} />
+          <Tabs.Screen name="search"  options={{ href: null }} />
           <Tabs.Screen name="notifications" options={{ href: null }} />
           <Tabs.Screen name="profile"       options={{ href: null }} />
           <Tabs.Screen name="settings"      options={{ href: null }} />

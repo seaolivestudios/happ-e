@@ -15,6 +15,7 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 
 const NOTIF_PREFS_KEY = 'happe_notif_prefs';
 
@@ -338,6 +339,7 @@ export default function SettingsScreen() {
               secureTextEntry
               value={currentPw}
               onChangeText={setCurrentPw}
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
             <TextInput
               style={styles.input}
@@ -346,6 +348,7 @@ export default function SettingsScreen() {
               secureTextEntry
               value={newPw}
               onChangeText={setNewPw}
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
             <TextInput
               style={styles.input}
@@ -354,6 +357,7 @@ export default function SettingsScreen() {
               secureTextEntry
               value={confirmPw}
               onChangeText={setConfirmPw}
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
 
             <TouchableOpacity
@@ -378,6 +382,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       )}
+      <KeyboardDoneBar />
     </View>
   );
 }

@@ -25,6 +25,7 @@ import {
 import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
 import { useFeedMode } from './feedModeContext';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 
 type PostType = 'image' | 'video' | 'inspire';
 
@@ -650,9 +651,31 @@ export default function HomeScreen() {
                     />
                   </Pressable>
                 )}
+                {feedMode === 'trending' && (
+                  <Pressable
+                    style={styles.cinemaBadge}
+                    onPress={() => router.push({ pathname: '/(tabs)/cinema', params: { startId: post.id } } as any)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="film" size={11} color="#000000" />
+                    <Text style={styles.cinemaBadgeText}>Cinema</Text>
+                  </Pressable>
+                )}
               </View>
             ) : post.image ? (
-              <ImageCard uri={post.image} />
+              <View>
+                <ImageCard uri={post.image} />
+                {feedMode === 'trending' && (
+                  <Pressable
+                    style={styles.cinemaBadge}
+                    onPress={() => router.push({ pathname: '/(tabs)/cinema', params: { startId: post.id } } as any)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="film" size={11} color="#000000" />
+                    <Text style={styles.cinemaBadgeText}>Cinema</Text>
+                  </Pressable>
+                )}
+              </View>
             ) : null}
 
             {post.text ? (
@@ -663,7 +686,7 @@ export default function HomeScreen() {
         </View>
       );
     },
-    [feedHeight, isMuted, currentPostId, renderActions]
+    [feedHeight, isMuted, currentPostId, renderActions, feedMode]
   );
 
   return (
@@ -915,6 +938,7 @@ export default function HomeScreen() {
                   value={newComment}
                   onChangeText={setNewComment}
                   returnKeyType="send"
+                  inputAccessoryViewID={KEYBOARD_DONE_ID}
                   onSubmitEditing={() => {
                     if (commentPostId) {
                       void handleComment(commentPostId, newComment);
@@ -941,6 +965,7 @@ export default function HomeScreen() {
         </>
       ) : null}
 
+      <KeyboardDoneBar />
     </View>
   );
 }
@@ -1153,6 +1178,23 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cinemaBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFC300',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  cinemaBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000000',
   },
   imagePlaceholder: {
     position: 'absolute',

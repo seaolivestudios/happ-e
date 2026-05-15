@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api } from './api';
 import { saveSession } from './auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from './components/KeyboardDoneBar';
 
 type ForgotStep = 'idle' | 'email' | 'code';
 
@@ -92,6 +93,7 @@ export default function LoginScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
             </View>
           )}
@@ -158,6 +160,7 @@ export default function LoginScreen() {
                 onChangeText={setResetEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
               <TouchableOpacity
                 style={[styles.btn, { marginTop: 12 }, resetLoading && styles.btnDisabled]}
@@ -196,6 +199,7 @@ export default function LoginScreen() {
                 value={resetCode}
                 onChangeText={setResetCode}
                 keyboardType="number-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
               <TextInput
                 style={styles.input}
@@ -204,6 +208,7 @@ export default function LoginScreen() {
                 value={resetPassword}
                 onChangeText={setResetPassword}
                 secureTextEntry
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
               <TouchableOpacity
                 style={[styles.btn, { marginTop: 12 }, resetLoading && styles.btnDisabled]}
@@ -237,6 +242,7 @@ export default function LoginScreen() {
 
         <Text style={styles.footer}>By continuing you agree to our Terms of Service and Privacy Policy.</Text>
       </ScrollView>
+      <KeyboardDoneBar />
     </KeyboardAvoidingView>
   );
 }

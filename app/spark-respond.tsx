@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { api, uploadMedia } from './api';
 import { getToken, getUser } from './auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from './components/KeyboardDoneBar';
 
 export default function SparkRespondScreen() {
   const { prompt } = useLocalSearchParams<{ prompt: string }>();
@@ -166,11 +167,13 @@ export default function SparkRespondScreen() {
             multiline
             maxLength={300}
             editable={!loading}
+            inputAccessoryViewID={KEYBOARD_DONE_ID}
           />
         </View>
         <Text style={styles.charCount}>{300 - caption.length} characters remaining</Text>
 
       </ScrollView>
+      <KeyboardDoneBar />
     </View>
   );
 }

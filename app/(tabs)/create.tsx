@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { api, uploadMedia } from '../api';
 import { getToken, getUser } from '../auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 
 const ALL_CATEGORIES = [
   // Sports & Outdoors
@@ -300,6 +301,7 @@ export default function CreateScreen() {
             multiline
             maxLength={300}
             editable={!loading}
+            inputAccessoryViewID={KEYBOARD_DONE_ID}
           />
         </View>
         <Text style={styles.charCount}>{300 - caption.length} remaining</Text>
@@ -347,6 +349,7 @@ export default function CreateScreen() {
                 onChangeText={setCategorySearch}
                 autoCorrect={false}
                 autoCapitalize="none"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
               {categorySearch.length > 0 && (
                 <Pressable onPress={() => setCategorySearch('')} hitSlop={8}>
@@ -378,6 +381,8 @@ export default function CreateScreen() {
           </View>
         </View>
       )}
+
+      <KeyboardDoneBar />
 
       {/* Upload/post progress overlay */}
       {uploadPhase !== 'idle' && (

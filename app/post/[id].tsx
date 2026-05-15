@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { api } from '../api';
 import { getToken, getUser } from '../auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 
 type DetailComment = {
   id?: string;
@@ -371,6 +372,7 @@ export default function PostDetailScreen() {
                 multiline
                 autoFocus
                 placeholderTextColor="#666666"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
               <View style={styles.editActions}>
                 <Pressable style={styles.editCancel} onPress={() => setEditMode(false)}>
@@ -512,6 +514,7 @@ export default function PostDetailScreen() {
                   onSubmitEditing={handleSendComment}
                   editable={!sending}
                   autoFocus
+                  inputAccessoryViewID={KEYBOARD_DONE_ID}
                 />
                 <Pressable
                   style={[styles.sendBtn, (!comment.trim() || sending) && styles.sendBtnDisabled]}
@@ -527,6 +530,7 @@ export default function PostDetailScreen() {
           </Animated.View>
         </>
       )}
+      <KeyboardDoneBar />
     </View>
   );
 }

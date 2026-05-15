@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl,
 const { width: screenWidth } = Dimensions.get('window');
 import { api, uploadMedia } from '../api';
 import { getToken } from '../auth';
+import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
 import { INTEREST_CATEGORIES, getEmojiByLabel } from '../interests';
 
 const API = 'https://happe-backend-production.up.railway.app';
@@ -288,7 +289,7 @@ export default function ProfileScreen() {
           <View style={styles.editForm}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Name</Text>
-              <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#888888" maxLength={50} />
+              <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#888888" maxLength={50} inputAccessoryViewID={KEYBOARD_DONE_ID} />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Handle</Text>
@@ -300,20 +301,21 @@ export default function ProfileScreen() {
                 placeholder="@yourhandle"
                 autoCapitalize="none"
                 maxLength={30}
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
               />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Bio</Text>
-              <TextInput style={[styles.input, styles.bioInput]} value={editBio} onChangeText={setEditBio} placeholderTextColor="#888888" multiline maxLength={150} />
+              <TextInput style={[styles.input, styles.bioInput]} value={editBio} onChangeText={setEditBio} placeholderTextColor="#888888" multiline maxLength={150} inputAccessoryViewID={KEYBOARD_DONE_ID} />
               <Text style={styles.charCount}>{150 - editBio.length} characters remaining</Text>
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Location</Text>
-              <TextInput style={styles.input} value={editLocation} onChangeText={setEditLocation} placeholderTextColor="#888888" placeholder="City, State" />
+              <TextInput style={styles.input} value={editLocation} onChangeText={setEditLocation} placeholderTextColor="#888888" placeholder="City, State" inputAccessoryViewID={KEYBOARD_DONE_ID} />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Website</Text>
-              <TextInput style={styles.input} value={editWebsite} onChangeText={setEditWebsite} placeholderTextColor="#888888" placeholder="yourwebsite.com" autoCapitalize="none" keyboardType="url" />
+              <TextInput style={styles.input} value={editWebsite} onChangeText={setEditWebsite} placeholderTextColor="#888888" placeholder="yourwebsite.com" autoCapitalize="none" keyboardType="url" inputAccessoryViewID={KEYBOARD_DONE_ID} />
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Creative Category</Text>
@@ -509,6 +511,7 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
       )}
+      <KeyboardDoneBar />
     </View>
   );
 }
