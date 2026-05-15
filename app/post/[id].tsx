@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,9 +16,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { api } from '../api';
 import { getToken, getUser } from '../auth';
 
@@ -27,6 +29,7 @@ type DetailComment = {
   handle: string;
   text: string;
   created_at: string;
+  avatar_url?: string | null;
 };
 
 type DetailPost = {
@@ -55,6 +58,8 @@ function formatDate(iso: string): string {
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { width } = useWindowDimensions();
+
   const [post, setPost] = useState<DetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [smiled, setSmiled] = useState(false);
@@ -66,7 +71,10 @@ export default function PostDetailScreen() {
   const [editText, setEditText] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const [commentVisible, setCommentVisible] = useState(false);
+
+  const commentAnim = useRef(new Animated.Value(width)).current;
+  const commentOpacity = useRef(new Animated.Value(0)).current;
 
   const REPORT_REASONS = ['Inappropriate content', 'Spam', 'Bullying or harassment', 'Nudity', 'Misinformation', 'Other'];
 
@@ -74,6 +82,13 @@ export default function PostDetailScreen() {
     getUser().then(u => setCurrentUser(u));
     loadPost();
   }, [id]);
+
+  useEffect(() => {
+    if (!commentVisible) {
+      commentAnim.setValue(width);
+      commentOpacity.setValue(0);
+    }
+  }, [commentVisible, commentAnim, commentOpacity, width]);
 
   const loadPost = async () => {
     setLoading(true);
@@ -96,7 +111,14 @@ export default function PostDetailScreen() {
           category: p.category ?? null,
           smile_count: parseInt(String(p.smile_count ?? 0), 10) || 0,
           created_at: p.created_at ?? '',
-          comments: Array.isArray(p.comments) ? p.comments.map((c: any) => ({ ...c, id: c.id ? String(c.id) : undefined, user_id: c.user_id ? String(c.user_id) : undefined })) : [],
+          comments: Array.isArray(p.comments)
+            ? p.comments.map((c: any) => ({
+                ...c,
+                id: c.id ? String(c.id) : undefined,
+                user_id: c.user_id ? String(c.user_id) : undefined,
+                avatar_url: c.avatar_url ?? null,
+              }))
+            : [],
         });
         setSmileCount(parseInt(String(p.smile_count ?? 0), 10) || 0);
       }
@@ -106,6 +128,25 @@ export default function PostDetailScreen() {
       setLoading(false);
     }
   };
+
+  const openComments = useCallback(() => {
+    commentAnim.setValue(width);
+    commentOpacity.setValue(0);
+    setCommentVisible(true);
+    requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.timing(commentAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(commentOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      ]).start();
+    });
+  }, [commentAnim, commentOpacity, width]);
+
+  const closeComments = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(commentAnim, { toValue: width, duration: 220, useNativeDriver: true }),
+      Animated.timing(commentOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => setCommentVisible(false));
+  }, [commentAnim, commentOpacity, width]);
 
   const handleSmile = useCallback(async () => {
     if (!post) return;
@@ -192,8 +233,8 @@ export default function PostDetailScreen() {
     });
   }, [post]);
 
-  const handleDeleteComment = useCallback((comment: DetailComment) => {
-    if (!post || !comment.id) return;
+  const handleDeleteComment = useCallback((c: DetailComment) => {
+    if (!post || !c.id) return;
     Alert.alert('Delete comment', 'Delete your comment?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -202,8 +243,8 @@ export default function PostDetailScreen() {
         onPress: async () => {
           try {
             const token = await getToken();
-            await api.deleteComment(post.id, comment.id!, token ?? '');
-            setPost(prev => prev ? { ...prev, comments: prev.comments.filter(c => c.id !== comment.id) } : prev);
+            await api.deleteComment(post.id, c.id!, token ?? '');
+            setPost(prev => prev ? { ...prev, comments: prev.comments.filter(x => x.id !== c.id) } : prev);
           } catch {
             Alert.alert('Error', 'Could not delete comment.');
           }
@@ -253,10 +294,7 @@ export default function PostDetailScreen() {
   const avatarLetter = (post.name || 'U').charAt(0).toUpperCase();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -357,7 +395,7 @@ export default function PostDetailScreen() {
             <Ionicons name={smiled ? 'happy' : 'happy-outline'} size={24} color={smiled ? '#FFC300' : '#888888'} />
             <Text style={[styles.actionCount, smiled && styles.actionCountActive]}>{smileCount}</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => inputRef.current?.focus()} accessibilityRole="button" accessibilityLabel="Add comment">
+          <Pressable style={styles.actionBtn} onPress={openComments} accessibilityRole="button" accessibilityLabel="View comments">
             <Ionicons name="chatbubble-outline" size={24} color="#888888" />
             <Text style={styles.actionCount}>{post.comments.length}</Text>
           </Pressable>
@@ -365,14 +403,14 @@ export default function PostDetailScreen() {
             <Ionicons name="share-outline" size={24} color="#888888" />
           </Pressable>
           {post.user_id && currentUser?.id && String(post.user_id) !== String(currentUser.id) && (
-            <Pressable style={[styles.actionBtn, styles.deleteBtn]} onPress={() => setReportVisible(true)} accessibilityRole="button" accessibilityLabel="Report post">
+            <Pressable style={[styles.actionBtn, styles.actionBtnRight]} onPress={() => setReportVisible(true)} accessibilityRole="button" accessibilityLabel="Report post">
               <Ionicons name="flag-outline" size={22} color="#888888" />
             </Pressable>
           )}
           {post.user_id && currentUser?.id && String(post.user_id) === String(currentUser.id) && (
             <>
               <Pressable
-                style={[styles.actionBtn, styles.deleteBtn]}
+                style={[styles.actionBtn, styles.actionBtnRight]}
                 onPress={() => { setEditText(post.text); setEditMode(true); }}
                 accessibilityRole="button"
                 accessibilityLabel="Edit post"
@@ -386,7 +424,7 @@ export default function PostDetailScreen() {
           )}
         </View>
 
-        {/* Report modal */}
+        {/* Report overlay */}
         {reportVisible && (
           <View style={styles.reportOverlay}>
             <View style={styles.reportCard}>
@@ -405,69 +443,91 @@ export default function PostDetailScreen() {
           </View>
         )}
 
-        <View style={styles.divider} />
-
-        {/* Comments */}
-        <Text style={styles.commentsHeading}>Comments</Text>
-        {post.comments.length === 0 ? (
-          <Text style={styles.noComments}>No comments yet. Be the first.</Text>
-        ) : null}
-        {post.comments.map((c, i) => {
-          const isMyComment = c.user_id && currentUser?.id && String(c.user_id) === String(currentUser.id);
-          return (
-            <Pressable
-              key={c.id ?? i}
-              style={styles.commentRow}
-              onLongPress={() => isMyComment && handleDeleteComment(c)}
-              delayLongPress={400}
-            >
-              {(c as any).avatar_url ? (
-                <Image source={{ uri: (c as any).avatar_url }} style={styles.commentAvatarImg} />
-              ) : (
-                <View style={styles.commentAvatar}>
-                  <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
-              <View style={styles.commentBody}>
-                <Text style={styles.commentName}>{c.name}</Text>
-                <Text style={styles.commentText}>{c.text}</Text>
-              </View>
-              {isMyComment && (
-                <Pressable onPress={() => handleDeleteComment(c)} hitSlop={8} style={styles.commentDeleteBtn}>
-                  <Ionicons name="trash-outline" size={14} color="#555555" />
-                </Pressable>
-              )}
-            </Pressable>
-          );
-        })}
-
-        <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Comment input */}
-      <View style={styles.inputBar}>
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
-          placeholder="Add a kind comment..."
-          placeholderTextColor="#666666"
-          value={comment}
-          onChangeText={setComment}
-          returnKeyType="send"
-          onSubmitEditing={handleSendComment}
-          editable={!sending}
-        />
-        <Pressable
-          style={[styles.sendBtn, (!comment.trim() || sending) && styles.sendBtnDisabled]}
-          onPress={handleSendComment}
-          disabled={!comment.trim() || sending}
-          accessibilityRole="button"
-          accessibilityLabel="Send comment"
-        >
-          <Ionicons name="send" size={18} color="#000000" />
-        </Pressable>
-      </View>
-    </KeyboardAvoidingView>
+      {/* Comment drawer */}
+      {commentVisible && (
+        <>
+          <Animated.View style={[styles.commentOverlay, { opacity: commentOpacity }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close comments"
+              style={StyleSheet.absoluteFill}
+              onPress={closeComments}
+            />
+          </Animated.View>
+
+          <Animated.View style={[styles.commentDrawer, { transform: [{ translateX: commentAnim }] }]}>
+            <View style={styles.commentDrawerHeader}>
+              <Text style={styles.commentDrawerTitle}>Comments</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close comments" hitSlop={10} onPress={closeComments}>
+                <Ionicons name="close" size={24} color="#888888" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.commentList} keyboardShouldPersistTaps="handled">
+              {post.comments.length === 0 && (
+                <Text style={styles.noComments}>No comments yet. Be the first.</Text>
+              )}
+              {post.comments.map((c, i) => {
+                const isMine = c.user_id && currentUser?.id && String(c.user_id) === String(currentUser.id);
+                return (
+                  <Pressable
+                    key={c.id ?? i}
+                    style={styles.commentRow}
+                    onLongPress={() => isMine && handleDeleteComment(c)}
+                    delayLongPress={400}
+                  >
+                    {c.avatar_url ? (
+                      <Image source={{ uri: c.avatar_url }} style={styles.commentAvatarImg} />
+                    ) : (
+                      <View style={styles.commentAvatar}>
+                        <Text style={styles.commentAvatarText}>{(c.name || 'U').charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={styles.commentBody}>
+                      <Text style={styles.commentName}>{c.name}</Text>
+                      <Text style={styles.commentText}>{c.text}</Text>
+                    </View>
+                    {isMine && (
+                      <Pressable onPress={() => handleDeleteComment(c)} hitSlop={8} style={styles.commentDeleteBtn}>
+                        <Ionicons name="trash-outline" size={14} color="#555555" />
+                      </Pressable>
+                    )}
+                  </Pressable>
+                );
+              })}
+              <View style={{ height: 16 }} />
+            </ScrollView>
+
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <View style={styles.commentInputRow}>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Add a kind comment..."
+                  placeholderTextColor="#666666"
+                  value={comment}
+                  onChangeText={setComment}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendComment}
+                  editable={!sending}
+                  autoFocus
+                />
+                <Pressable
+                  style={[styles.sendBtn, (!comment.trim() || sending) && styles.sendBtnDisabled]}
+                  onPress={handleSendComment}
+                  disabled={!comment.trim() || sending}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send comment"
+                >
+                  <Ionicons name="send" size={18} color="#000000" />
+                </Pressable>
+              </View>
+            </KeyboardAvoidingView>
+          </Animated.View>
+        </>
+      )}
+    </View>
   );
 }
 
@@ -477,12 +537,18 @@ const styles = StyleSheet.create({
   errorText: { color: '#888888', fontSize: 15, marginBottom: 16 },
   backBtnCenter: { backgroundColor: '#FFC300', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 },
   backBtnCenterText: { color: '#000000', fontWeight: '700', fontSize: 15 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingBottom: 14, paddingHorizontal: 20, borderBottomWidth: 2, borderBottomColor: '#FFC300' },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: 60, paddingBottom: 14, paddingHorizontal: 20,
+    borderBottomWidth: 2, borderBottomColor: '#FFC300',
+  },
   backBtn: { width: 36 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
   headerRight: { width: 36 },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 16 },
+  scrollContent: { paddingBottom: 32 },
+
   authorRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
@@ -492,33 +558,23 @@ const styles = StyleSheet.create({
   authorHandle: { fontSize: 13, color: '#888888', marginTop: 1 },
   categoryBadge: { backgroundColor: '#111111', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#333333' },
   categoryText: { fontSize: 12, color: '#FFC300', fontWeight: '600' },
+
   media: { width: '100%' },
   mediaPortrait: { aspectRatio: 4 / 5 },
   inspireCard: { backgroundColor: '#111111', padding: 32, alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#222222' },
   inspireLabel: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 2, marginBottom: 16 },
   inspireText: { fontSize: 20, color: '#FFFFFF', lineHeight: 30, fontStyle: 'italic', textAlign: 'center' },
   inspireAuthor: { fontSize: 14, color: '#FFC300', marginTop: 16, fontWeight: '600' },
+
   caption: { fontSize: 15, color: '#FFFFFF', lineHeight: 22, paddingHorizontal: 16, paddingTop: 14 },
   date: { fontSize: 12, color: '#555555', paddingHorizontal: 16, marginTop: 8 },
+
   actions: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14, gap: 24 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionBtnRight: { marginLeft: 'auto' },
   actionCount: { fontSize: 15, color: '#888888', fontWeight: '600' },
   actionCountActive: { color: '#FFC300' },
-  divider: { height: 1, backgroundColor: '#1A1A1A', marginHorizontal: 16 },
-  commentsHeading: { fontSize: 13, fontWeight: '700', color: '#FFC300', letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
-  noComments: { fontSize: 14, color: '#555555', paddingHorizontal: 16 },
-  commentRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  commentAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  commentAvatarImg: { width: 32, height: 32, borderRadius: 16, flexShrink: 0 },
-  commentAvatarText: { fontSize: 13, fontWeight: '700', color: '#FFC300' },
-  commentBody: { flex: 1 },
-  commentName: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2 },
-  commentText: { fontSize: 14, color: '#CCCCCC', lineHeight: 20 },
-  inputBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#1A1A1A', gap: 10, backgroundColor: '#000000' },
-  input: { flex: 1, backgroundColor: '#111111', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: '#FFFFFF', fontSize: 14, borderWidth: 1, borderColor: '#222222' },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFC300', alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.4 },
-  deleteBtn: { marginLeft: 'auto' },
+
   editBox: { paddingHorizontal: 16, paddingTop: 14 },
   editInput: { backgroundColor: '#111111', borderRadius: 12, padding: 12, color: '#FFFFFF', fontSize: 15, lineHeight: 22, borderWidth: 1, borderColor: '#333333', minHeight: 80 },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
@@ -526,7 +582,7 @@ const styles = StyleSheet.create({
   editCancelText: { color: '#888888', fontWeight: '600', fontSize: 14 },
   editSave: { flex: 1, backgroundColor: '#FFC300', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   editSaveText: { color: '#000000', fontWeight: '700', fontSize: 14 },
-  commentDeleteBtn: { paddingLeft: 8, alignSelf: 'center' },
+
   reportOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 20, alignItems: 'center', justifyContent: 'flex-end' },
   reportCard: { width: '100%', backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
   reportTitle: { fontSize: 17, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', marginBottom: 4 },
@@ -535,4 +591,45 @@ const styles = StyleSheet.create({
   reportOptionText: { fontSize: 15, color: '#FFFFFF' },
   reportCancel: { marginTop: 16, alignItems: 'center', paddingVertical: 14 },
   reportCancelText: { fontSize: 15, fontWeight: '600', color: '#888888' },
+
+  commentOverlay: {
+    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 10,
+  },
+  commentDrawer: {
+    position: 'absolute', top: 0, right: 0, bottom: 0,
+    width: '82%',
+    backgroundColor: 'rgba(15,15,15,0.97)',
+    zIndex: 20,
+    borderLeftWidth: 2, borderLeftColor: '#FFC300',
+    padding: 20,
+  },
+  commentDrawerHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 60, marginBottom: 16,
+  },
+  commentDrawerTitle: { fontSize: 18, fontWeight: '700', color: '#FFC300' },
+  commentList: { flex: 1 },
+  noComments: { fontSize: 13, color: '#888888', fontStyle: 'italic', textAlign: 'center', marginTop: 40 },
+  commentRow: { flexDirection: 'row', gap: 10, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#222222' },
+  commentAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#222222', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  commentAvatarImg: { width: 32, height: 32, borderRadius: 16, flexShrink: 0 },
+  commentAvatarText: { fontSize: 13, fontWeight: '700', color: '#FFC300' },
+  commentBody: { flex: 1 },
+  commentName: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', marginBottom: 2 },
+  commentText: { fontSize: 14, color: '#CCCCCC', lineHeight: 20 },
+  commentDeleteBtn: { paddingLeft: 8, alignSelf: 'center' },
+  commentInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingTop: 12, paddingBottom: 20,
+    borderTopWidth: 1, borderTopColor: '#333333',
+  },
+  commentInput: {
+    flex: 1, backgroundColor: '#222222', borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 13, color: '#FFFFFF',
+    borderWidth: 0.5, borderColor: '#FFC300',
+  },
+  sendBtn: { backgroundColor: '#FFC300', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { opacity: 0.4 },
 });

@@ -55,7 +55,9 @@ export default function CreateScreen() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
-  const [loading, setLoading] = useState(false);
+  type UploadPhase = 'idle' | 'uploading' | 'posting';
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
+  const loading = uploadPhase !== 'idle';
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; avatar_url?: string } | null>(null);
 
   useEffect(() => {
@@ -71,10 +73,10 @@ export default function CreateScreen() {
     setStep('pick');
     setMediaUri(null);
     setMediaType('image');
-
     setCaption('');
     setSelectedCategory('');
     setCategorySearch('');
+    setUploadPhase('idle');
   };
 
   const pickFromLibrary = async () => {
@@ -147,10 +149,17 @@ export default function CreateScreen() {
       return;
     }
 
-    setLoading(true);
+    const token = await getToken();
+    if (!token) {
+      Alert.alert('Session expired', 'Please sign in again.');
+      router.replace('/login' as any);
+      return;
+    }
+
+    setUploadPhase('uploading');
     try {
-      const token = await getToken();
       const mediaUrl = await uploadMedia(mediaUri, mediaType);
+      setUploadPhase('posting');
       const payload = {
         type: mediaType,
         text: caption.trim(),
@@ -158,18 +167,18 @@ export default function CreateScreen() {
         video_url: mediaType === 'video' ? mediaUrl : undefined,
         category: selectedCategory,
       };
-      const result = await api.createPost(payload, token ?? '');
+      const result = await api.createPost(payload, token);
       if (result.success || result.post) {
         resetAll();
         router.replace('/(tabs)/index' as any);
       } else {
         Alert.alert('Error', result.error || 'Something went wrong.');
+        setUploadPhase('idle');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not upload your post.';
       Alert.alert('Upload error', msg);
-    } finally {
-      setLoading(false);
+      setUploadPhase('idle');
     }
   };
 
@@ -369,6 +378,18 @@ export default function CreateScreen() {
           </View>
         </View>
       )}
+
+      {/* Upload/post progress overlay */}
+      {uploadPhase !== 'idle' && (
+        <View style={styles.uploadOverlay}>
+          <View style={styles.uploadCard}>
+            <ActivityIndicator size="large" color="#FFC300" />
+            <Text style={styles.uploadPhaseText}>
+              {uploadPhase === 'uploading' ? `Uploading ${mediaType}...` : 'Posting...'}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -462,6 +483,18 @@ const styles = StyleSheet.create({
   },
   categorySearchInput: { flex: 1, fontSize: 15, color: '#FFFFFF' },
   categoryList: { paddingHorizontal: 16, paddingBottom: 40 },
+
+  uploadOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center',
+    justifyContent: 'center', zIndex: 1000,
+  },
+  uploadCard: {
+    backgroundColor: '#111111', borderRadius: 20, padding: 32,
+    alignItems: 'center', gap: 16,
+    borderWidth: 2, borderColor: '#FFC300', minWidth: 200,
+  },
+  uploadPhaseText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   categoryOption: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 15, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A',

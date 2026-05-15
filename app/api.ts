@@ -179,7 +179,7 @@ export const api = {
     return response.json();
   },
 
-  createPost: async (payload: { type: string; text: string; image_url?: string; video_url?: string }, token: string) => {
+  createPost: async (payload: { type: string; text: string; image_url?: string; video_url?: string; category?: string }, token: string) => {
     const response = await fetch(`${API_URL}/posts`, {
       method: 'POST',
       headers: {

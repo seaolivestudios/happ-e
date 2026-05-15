@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
+import { useFeedMode } from './feedModeContext';
 
 type PostType = 'image' | 'video' | 'inspire';
 
@@ -161,14 +162,11 @@ export default function HomeScreen() {
   const [isMuted, setIsMuted] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; email?: string; avatar_url?: string } | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [feedMode, setFeedMode] = useState<'all' | 'following' | 'foryou' | 'trending'>('all');
-  const [pendingPosts, setPendingPosts] = useState<Post[]>([]);
+  const { feedMode } = useFeedMode();
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [feedError, setFeedError] = useState(false);
-  const newestCreatedAtRef = useRef<string>('');
   const nextCursorRef = useRef<string | null>(null);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
@@ -245,9 +243,7 @@ export default function HomeScreen() {
       nextCursorRef.current = result?.next_cursor ?? null;
       if (nextPosts.length > 0) {
         setCurrentPostId((prev) => prev || nextPosts[0].id);
-        newestCreatedAtRef.current = nextPosts[0].createdAt;
       }
-      if (isRefresh) setPendingPosts([]);
     } catch {
       setFeedError(true);
     } finally {
@@ -285,36 +281,6 @@ export default function HomeScreen() {
 
   useEffect(() => { void loadPosts(); }, [feedMode]);
 
-  useEffect(() => {
-    if (isLoadingPosts) return;
-
-    const poll = async () => {
-      const since = newestCreatedAtRef.current;
-      if (!since) return;
-      try {
-        const token = await getToken();
-        const result = await api.getNewPosts(token || '', since);
-        const fresh: Post[] = Array.isArray(result?.posts)
-          ? result.posts.map((raw: ApiPost) => normalizePost(raw))
-          : [];
-        if (fresh.length > 0) {
-          newestCreatedAtRef.current = fresh[0].createdAt;
-          setPendingPosts(prev => {
-            const existingIds = new Set(prev.map(p => p.id));
-            const unique = fresh.filter(p => !existingIds.has(p.id));
-            return unique.length > 0 ? [...unique, ...prev] : prev;
-          });
-        }
-      } catch {
-        // silent — polling failure is non-fatal
-      }
-    };
-
-    pollIntervalRef.current = setInterval(() => { void poll(); }, 30_000);
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    };
-  }, [isLoadingPosts]);
 
   const openMenu = useCallback(() => {
     menuAnim.setValue(-MENU_WIDTH);
@@ -740,35 +706,6 @@ export default function HomeScreen() {
             <Ionicons name="happy-outline" size={26} color="#FFC300" />
           </Pressable>
         </View>
-
-      <View style={styles.feedTabs}>
-        {(['all', 'following', 'foryou', 'trending'] as const).map((mode) => (
-          <Pressable
-            key={mode}
-            style={[styles.feedTab, feedMode === mode && styles.feedTabActive]}
-            onPress={() => { if (feedMode !== mode) { setPosts([]); setPendingPosts([]); setHasMore(true); setFeedMode(mode); } }}
-          >
-            <Text style={[styles.feedTabText, feedMode === mode && styles.feedTabTextActive]}>
-              {mode === 'all' ? 'All' : mode === 'following' ? 'Following' : mode === 'foryou' ? 'For You' : '✦ Trending'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {pendingPosts.length > 0 && (
-        <Pressable
-          style={styles.newPostsBanner}
-          onPress={() => {
-            setPosts(prev => [...pendingPosts, ...prev]);
-            setPendingPosts([]);
-            portraitScrollRef.current?.scrollToIndex({ index: 0, animated: true });
-          }}
-        >
-          <Text style={styles.newPostsBannerText}>
-            {pendingPosts.length === 1 ? '1 new post — tap to view' : `${pendingPosts.length} new posts — tap to view`}
-          </Text>
-        </Pressable>
-      )}
 
       {isLoadingPosts ? (
         <View style={styles.loadingState}>
@@ -1483,54 +1420,5 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  feedTabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-    backgroundColor: '#000000',
-  },
-  feedTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#111111',
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  feedTabActive: {
-    backgroundColor: '#FFC300',
-    borderColor: '#FFC300',
-  },
-  feedTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888888',
-  },
-  feedTabTextActive: {
-    color: '#000000',
-  },
-  newPostsBanner: {
-    position: 'absolute',
-    top: HEADER_HEIGHT + 52,
-    left: 20,
-    right: 20,
-    zIndex: 5,
-    backgroundColor: '#FFC300',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  newPostsBannerText: {
-    color: '#000000',
-    fontWeight: '700',
-    fontSize: 13,
   },
 });
