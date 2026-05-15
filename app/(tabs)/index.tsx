@@ -26,6 +26,7 @@ import { api } from '../api';
 import { clearSession, getToken, getUser } from '../auth';
 import { useFeedMode } from './feedModeContext';
 import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
+import { ALL_CATEGORIES } from '../categories';
 
 type PostType = 'image' | 'video' | 'inspire';
 
@@ -167,6 +168,9 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [feedError, setFeedError] = useState(false);
+  const [trendingCategory, setTrendingCategory] = useState<string | null>(null);
+  const [trendingFilterVisible, setTrendingFilterVisible] = useState(false);
+  const [trendingCategorySearch, setTrendingCategorySearch] = useState('');
   const nextCursorRef = useRef<string | null>(null);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
@@ -232,7 +236,9 @@ export default function HomeScreen() {
       const result = feedMode === 'foryou'
         ? await api.getPostsForYou(token || '')
         : feedMode === 'trending'
-          ? await api.getTrendingPosts(token || '')
+          ? (trendingCategory
+              ? await api.getPostsByCategory(trendingCategory)
+              : await api.getTrendingPosts(token || ''))
           : await api.getPosts(token || '');
       const nextPosts: Post[] = Array.isArray(result?.posts)
         ? result.posts.map((raw: ApiPost) => normalizePost(raw))
@@ -249,7 +255,7 @@ export default function HomeScreen() {
       setIsLoadingPosts(false);
       setRefreshing(false);
     }
-  }, [feedMode]);
+  }, [feedMode, trendingCategory]);
 
   const loadMorePosts = useCallback(async () => {
     if (loadingMore || !hasMore || !nextCursorRef.current || feedMode === 'trending') return;
@@ -276,7 +282,11 @@ export default function HomeScreen() {
     }
   }, [loadingMore, hasMore, feedMode]);
 
-  useEffect(() => { void loadPosts(); }, [feedMode]);
+  useEffect(() => { void loadPosts(); }, [feedMode, trendingCategory]);
+
+  useEffect(() => {
+    if (feedMode !== 'trending') setTrendingCategory(null);
+  }, [feedMode]);
 
 
   const openMenu = useCallback(() => {
@@ -726,6 +736,31 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+      {feedMode === 'trending' && (
+        <View style={styles.trendingFilterRow}>
+          {trendingCategory ? (
+            <Pressable
+              style={styles.activeCategoryChip}
+              onPress={() => setTrendingCategory(null)}
+              hitSlop={8}
+            >
+              <Text style={styles.activeCategoryChipText}>{trendingCategory}</Text>
+              <Ionicons name="close-circle" size={14} color="#000000" />
+            </Pressable>
+          ) : (
+            <Text style={styles.trendingFilterLabel}>All Categories</Text>
+          )}
+          <Pressable
+            style={styles.filterBtn}
+            onPress={() => setTrendingFilterVisible(true)}
+            hitSlop={8}
+          >
+            <Ionicons name="options-outline" size={16} color="#FFC300" />
+            <Text style={styles.filterBtnText}>Filter</Text>
+          </Pressable>
+        </View>
+      )}
+
       {isLoadingPosts ? (
         <View style={styles.loadingState}>
           <ActivityIndicator size="large" color="#FFC300" />
@@ -966,6 +1001,72 @@ export default function HomeScreen() {
       ) : null}
 
       <KeyboardDoneBar />
+
+      {/* Trending category filter modal */}
+      {trendingFilterVisible && (
+        <View style={styles.trendingModalContainer}>
+          <Pressable style={styles.trendingModalBackdrop} onPress={() => { setTrendingFilterVisible(false); setTrendingCategorySearch(''); }} />
+          <View style={styles.trendingModalSheet}>
+            <View style={styles.trendingModalHeader}>
+              <Text style={styles.trendingModalTitle}>Filter Trending</Text>
+              <Pressable onPress={() => { setTrendingFilterVisible(false); setTrendingCategorySearch(''); }} hitSlop={10}>
+                <Ionicons name="close" size={24} color="#888888" />
+              </Pressable>
+            </View>
+
+            {trendingCategory && (
+              <Pressable
+                style={styles.clearFilterBtn}
+                onPress={() => { setTrendingCategory(null); setTrendingFilterVisible(false); setTrendingCategorySearch(''); }}
+              >
+                <Ionicons name="close-circle-outline" size={16} color="#FFC300" />
+                <Text style={styles.clearFilterText}>Clear filter — show all trending</Text>
+              </Pressable>
+            )}
+
+            <View style={styles.trendingSearchRow}>
+              <Ionicons name="search" size={16} color="#888888" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.trendingSearchInput}
+                placeholder="Search categories..."
+                placeholderTextColor="#888888"
+                value={trendingCategorySearch}
+                onChangeText={setTrendingCategorySearch}
+                autoCorrect={false}
+                autoCapitalize="none"
+                inputAccessoryViewID={KEYBOARD_DONE_ID}
+              />
+              {trendingCategorySearch.length > 0 && (
+                <Pressable onPress={() => setTrendingCategorySearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color="#888888" />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView style={styles.trendingCategoryList} keyboardShouldPersistTaps="handled">
+              {ALL_CATEGORIES
+                .filter(c => !trendingCategorySearch.trim() || c.toLowerCase().includes(trendingCategorySearch.trim().toLowerCase()))
+                .map(cat => (
+                  <Pressable
+                    key={cat}
+                    style={[styles.trendingCategoryOption, trendingCategory === cat && styles.trendingCategoryOptionActive]}
+                    onPress={() => {
+                      setTrendingCategory(cat);
+                      setTrendingFilterVisible(false);
+                      setTrendingCategorySearch('');
+                    }}
+                  >
+                    <Text style={[styles.trendingCategoryOptionText, trendingCategory === cat && styles.trendingCategoryOptionTextActive]}>
+                      {cat}
+                    </Text>
+                    {trendingCategory === cat && <Ionicons name="checkmark" size={18} color="#FFC300" />}
+                  </Pressable>
+                ))
+              }
+            </ScrollView>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1459,4 +1560,96 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // Trending category filter
+  trendingFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#222222',
+  },
+  trendingFilterLabel: { fontSize: 13, color: '#888888' },
+  activeCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFC300',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  activeCategoryChipText: { fontSize: 13, fontWeight: '700', color: '#000000' },
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#111111',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#FFC300',
+  },
+  filterBtnText: { fontSize: 13, fontWeight: '600', color: '#FFC300' },
+
+  // Trending category modal
+  trendingModalContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', zIndex: 999 },
+  trendingModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  trendingModalSheet: {
+    backgroundColor: '#111111',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 2,
+    borderTopColor: '#FFC300',
+    maxHeight: '80%',
+  },
+  trendingModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#222222',
+  },
+  trendingModalTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  clearFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFC300',
+  },
+  clearFilterText: { fontSize: 14, color: '#FFC300', fontWeight: '600' },
+  trendingSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  trendingSearchInput: { flex: 1, fontSize: 15, color: '#FFFFFF' },
+  trendingCategoryList: { paddingHorizontal: 16, paddingBottom: 40 },
+  trendingCategoryOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#1A1A1A',
+  },
+  trendingCategoryOptionActive: {},
+  trendingCategoryOptionText: { fontSize: 16, color: '#FFFFFF' },
+  trendingCategoryOptionTextActive: { color: '#FFC300', fontWeight: '700' },
 });

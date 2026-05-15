@@ -17,34 +17,7 @@ import {
 import { api, uploadMedia } from '../api';
 import { getToken, getUser } from '../auth';
 import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
-
-const ALL_CATEGORIES = [
-  // Sports & Outdoors
-  'Baseball', 'Basketball', 'Cycling', 'Fishing', 'Football', 'Golf',
-  'Hiking', 'Hockey', 'Hunting', 'Kayaking', 'Mountain Biking', 'Rock Climbing',
-  'Running', 'Sailing', 'Skateboarding', 'Skiing', 'Snowboarding', 'Soccer',
-  'Surfing', 'Swimming', 'Tennis', 'Wrestling',
-  // Art & Crafts
-  'Architecture', 'Art', 'Blacksmithing', 'Calligraphy', 'Candle Making',
-  'Ceramics', 'Digital Art', 'Drawing', 'Embroidery', 'Glassblowing',
-  'Illustration', 'Jewelry Making', 'Knitting', 'Leatherwork', 'Metalwork',
-  'Painting', 'Photography', 'Pottery', 'Printmaking', 'Sculpting',
-  'Sewing', 'Street Art', 'Videography', 'Weaving', 'Woodworking',
-  // Music & Genres
-  'Bass', 'Classical', 'Country', 'DJ', 'Drums', 'Electronic', 'Folk',
-  'Guitar', 'Hip-Hop', 'Indie', 'Jazz', 'Metal', 'Music', 'Piano',
-  'Pop', 'R&B', 'Reggae', 'Rock', 'Singing', 'Songwriting', 'Trumpet',
-  'Ukulele', 'Violin', 'Vinyl & Records',
-  // Animals
-  'Birds', 'Cats', 'Dogs', 'Farm Animals', 'Fish', 'Goats', 'Horses',
-  'Marine Life', 'Pigs', 'Rabbits', 'Reptiles', 'Wildlife',
-  // Food & Lifestyle
-  'Astronomy', 'Baking', 'BBQ', 'Bird Watching', 'Boating', 'Brewing',
-  'Camping', 'Cars', 'Cocktails', 'Coffee', 'Cooking', 'Fitness', 'Foraging',
-  'Gardening', 'Home Improvement', 'Journaling', 'Meditation', 'Motorcycles',
-  'Outdoors', 'Reading', 'Smoking Meats', 'Travel', 'Volunteering', 'Wine',
-  'Writing', 'Yoga',
-].sort();
+import { ALL_CATEGORIES } from '../categories';
 
 type Step = 'pick' | 'compose';
 
@@ -59,6 +32,7 @@ export default function CreateScreen() {
   type UploadPhase = 'idle' | 'uploading' | 'posting';
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const loading = uploadPhase !== 'idle';
+  const [isWidescreen, setIsWidescreen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ name?: string; handle?: string; avatar_url?: string } | null>(null);
 
   useEffect(() => {
@@ -78,6 +52,7 @@ export default function CreateScreen() {
     setSelectedCategory('');
     setCategorySearch('');
     setUploadPhase('idle');
+    setIsWidescreen(false);
   };
 
   const pickFromLibrary = async () => {
@@ -136,6 +111,56 @@ export default function CreateScreen() {
     }
   };
 
+  const pickCinemaFromLibrary = async () => {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Allow photo library access in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.9,
+      videoMaxDuration: 60,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setIsWidescreen(true);
+      setMediaUri(result.assets[0].uri);
+      setMediaType(result.assets[0].type === 'video' ? 'video' : 'image');
+      setStep('compose');
+    }
+  };
+
+  const takeCinemaPhoto = async () => {
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Allow camera access in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.9,
+      videoMaxDuration: 60,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setIsWidescreen(true);
+      setMediaUri(result.assets[0].uri);
+      setMediaType(result.assets[0].type === 'video' ? 'video' : 'image');
+      setStep('compose');
+    }
+  };
+
+  const handleCinemaPress = () => {
+    Alert.alert('Cinema Mode', 'Capture in widescreen (16:9) for the Cinema feed', [
+      { text: 'Camera Roll', onPress: () => void pickCinemaFromLibrary() },
+      { text: 'Take Photo / Video', onPress: () => void takeCinemaPhoto() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const handlePost = async () => {
     if (!mediaUri) {
       Alert.alert('Add media', 'Please select a photo or video.');
@@ -167,6 +192,7 @@ export default function CreateScreen() {
         image_url: mediaType === 'image' ? mediaUrl : undefined,
         video_url: mediaType === 'video' ? mediaUrl : undefined,
         category: selectedCategory,
+        widescreen: isWidescreen,
       };
       const result = await api.createPost(payload, token);
       if (result.success || result.post) {
@@ -236,6 +262,17 @@ export default function CreateScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#444444" />
           </Pressable>
+
+          <Pressable style={[styles.pickOption, styles.pickOptionCinema]} onPress={handleCinemaPress}>
+            <View style={[styles.pickIconCircle, styles.pickIconCircleCinema]}>
+              <Ionicons name="film" size={32} color="#FFC300" />
+            </View>
+            <View style={styles.pickOptionText}>
+              <Text style={styles.pickOptionTitle}>Cinema Mode</Text>
+              <Text style={styles.pickOptionSub}>Widescreen 16:9 — appears in the Cinema feed</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#FFC300" />
+          </Pressable>
         </View>
       </View>
     );
@@ -249,7 +286,15 @@ export default function CreateScreen() {
         <Pressable onPress={resetAll} style={styles.cancelBtn} disabled={loading}>
           <Ionicons name="arrow-back" size={22} color="#888888" />
         </Pressable>
-        <Text style={styles.headerTitle}>New Post</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>New Post</Text>
+          {isWidescreen && (
+            <View style={styles.cinemaHeaderBadge}>
+              <Ionicons name="film" size={11} color="#000000" />
+              <Text style={styles.cinemaHeaderBadgeText}>Cinema</Text>
+            </View>
+          )}
+        </View>
         <Pressable onPress={handlePost} disabled={loading} style={styles.shareBtn}>
           {loading
             ? <ActivityIndicator color="#000000" size="small" />
@@ -261,7 +306,7 @@ export default function CreateScreen() {
 
         {/* Media preview */}
         <Pressable
-          style={[styles.preview, styles.previewPortrait]}
+          style={[styles.preview, isWidescreen ? styles.previewWide : styles.previewPortrait]}
           onPress={resetAll}
           disabled={loading}
         >
@@ -408,6 +453,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2, borderBottomColor: '#FFC300',
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFC300' },
+  headerCenter: { alignItems: 'center', gap: 4 },
+  cinemaHeaderBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFC300', borderRadius: 8,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  cinemaHeaderBadgeText: { fontSize: 10, fontWeight: '700', color: '#000000' },
   cancelBtn: { width: 60 },
   cancelText: { fontSize: 16, color: '#888888' },
   shareBtn: {
@@ -436,6 +488,9 @@ const styles = StyleSheet.create({
 
   preview: { borderRadius: 14, overflow: 'hidden', marginBottom: 4, position: 'relative', backgroundColor: '#111111' },
   previewPortrait: { aspectRatio: 4 / 5 },
+  previewWide: { aspectRatio: 16 / 9 },
+  pickOptionCinema: { borderColor: '#FFC300', borderWidth: 1 },
+  pickIconCircleCinema: { backgroundColor: '#1A1A1A' },
   previewMedia: { width: '100%', height: '100%' },
   previewChangeOverlay: {
     position: 'absolute', bottom: 10, right: 10,
