@@ -23,10 +23,9 @@ const TABS = [
 ];
 
 const FEED_MODES: { mode: FeedMode; icon: string; label: string }[] = [
-  { mode: 'all',       icon: 'home',   label: 'Home'      },
-  { mode: 'following', icon: 'people', label: 'Following' },
-  { mode: 'foryou',    icon: 'star',   label: 'For You'   },
-  { mode: 'trending',  icon: 'flame',  label: 'Trending'  },
+  { mode: 'all',      icon: 'home',  label: 'Home'     },
+  { mode: 'foryou',   icon: 'star',  label: 'For You'  },
+  { mode: 'trending', icon: 'flame', label: 'Trending' },
 ];
 
 function CustomTabBar({ state, navigation }: TabBarProps) {

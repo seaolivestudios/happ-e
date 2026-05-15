@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type FeedMode = 'all' | 'following' | 'foryou' | 'trending';
+export type FeedMode = 'all' | 'foryou' | 'trending';
 
 export const FeedModeContext = createContext<{
   feedMode: FeedMode;

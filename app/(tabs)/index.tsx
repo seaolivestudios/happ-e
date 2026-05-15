@@ -228,13 +228,11 @@ export default function HomeScreen() {
     nextCursorRef.current = null;
     try {
       const token = await getToken();
-      const result = feedMode === 'following'
-        ? await api.getFollowingPosts(token || '')
-        : feedMode === 'foryou'
-          ? await api.getPostsForYou(token || '')
-          : feedMode === 'trending'
-            ? await api.getTrendingPosts(token || '')
-            : await api.getPosts(token || '');
+      const result = feedMode === 'foryou'
+        ? await api.getPostsForYou(token || '')
+        : feedMode === 'trending'
+          ? await api.getTrendingPosts(token || '')
+          : await api.getPosts(token || '');
       const nextPosts: Post[] = Array.isArray(result?.posts)
         ? result.posts.map((raw: ApiPost) => normalizePost(raw))
         : [];
@@ -258,11 +256,9 @@ export default function HomeScreen() {
     try {
       const token = await getToken();
       const cursor = nextCursorRef.current;
-      const result = feedMode === 'following'
-        ? await api.getFollowingPosts(token || '', cursor)
-        : feedMode === 'foryou'
-          ? await api.getPostsForYou(token || '', cursor)
-          : await api.getPosts(token || '', cursor);
+      const result = feedMode === 'foryou'
+        ? await api.getPostsForYou(token || '', cursor)
+        : await api.getPosts(token || '', cursor);
       const morePosts: Post[] = Array.isArray(result?.posts)
         ? result.posts.map((raw: ApiPost) => normalizePost(raw))
         : [];
@@ -725,7 +721,7 @@ export default function HomeScreen() {
         <View style={styles.errorState}>
           <Text style={styles.errorStateIcon}>✦</Text>
           <Text style={styles.errorStateText}>Nothing here yet</Text>
-          <Text style={styles.errorStateSub}>{feedMode === 'following' ? 'Follow people to see their posts here' : 'Be the first to share something'}</Text>
+          <Text style={styles.errorStateSub}>Be the first to share something</Text>
         </View>
       ) : (
         <FlatList
