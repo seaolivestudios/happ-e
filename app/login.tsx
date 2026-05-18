@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Scroll
 import { api } from './api';
 import { saveSession } from './auth';
 import { KeyboardDoneBar, KEYBOARD_DONE_ID } from './components/KeyboardDoneBar';
+import { resetTour } from './components/AppTour';
 
 type ForgotStep = 'idle' | 'email' | 'code';
 
@@ -36,6 +37,10 @@ export default function LoginScreen() {
 
       if (result.success && result.token) {
         await saveSession(result.token, result.user);
+        if (!isLogin) {
+          // New account — ensure the tour shows after onboarding
+          await resetTour();
+        }
         if (!isLogin || !result.user?.onboarded) {
           router.replace('/onboarding' as any);
         } else {

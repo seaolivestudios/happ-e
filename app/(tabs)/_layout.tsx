@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import { useContext, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppTour } from '../components/AppTour';
 import { FeedModeContext, FeedMode } from './feedModeContext';
 
 type TabBarProps = {
@@ -120,6 +121,8 @@ export default function TabLayout() {
           <Tabs.Screen name="profile"       options={{ href: null }} />
           <Tabs.Screen name="settings"      options={{ href: null }} />
         </Tabs>
+
+        <AppTour />
 
         {menuVisible && (
           <View style={[StyleSheet.absoluteFillObject, styles.menuOverlay]}>
