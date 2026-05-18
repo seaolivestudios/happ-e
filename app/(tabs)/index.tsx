@@ -661,7 +661,7 @@ export default function HomeScreen() {
                     />
                   </Pressable>
                 )}
-                {feedMode === 'trending' && (
+                {post.widescreen && (
                   <Pressable
                     style={styles.cinemaBadge}
                     onPress={() => router.push({ pathname: '/(tabs)/cinema', params: { startId: post.id } } as any)}
@@ -675,7 +675,7 @@ export default function HomeScreen() {
             ) : post.image ? (
               <View>
                 <ImageCard uri={post.image} />
-                {feedMode === 'trending' && (
+                {post.widescreen && (
                   <Pressable
                     style={styles.cinemaBadge}
                     onPress={() => router.push({ pathname: '/(tabs)/cinema', params: { startId: post.id } } as any)}

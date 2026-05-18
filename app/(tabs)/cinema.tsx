@@ -115,7 +115,8 @@ export default function CinemaScreen() {
     setLoading(true);
     try {
       const token = await getToken();
-      const res = await api.getTrendingPosts(token ?? '');
+      // Load all recent posts and filter to widescreen-only in normalizePosts
+      const res = await api.getPosts(token ?? '');
       if (res.posts) {
         setPosts(normalizePosts(res.posts));
       }
