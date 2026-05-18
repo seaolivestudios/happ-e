@@ -17,7 +17,7 @@ import {
 import { api, uploadMedia } from '../api';
 import { getToken, getUser } from '../auth';
 import { KeyboardDoneBar, KEYBOARD_DONE_ID } from '../components/KeyboardDoneBar';
-import { ALL_CATEGORIES } from '../categories';
+import { ALL_CATEGORIES, CATEGORY_GROUPS } from '../categories';
 
 type Step = 'pick' | 'compose';
 
@@ -29,6 +29,7 @@ export default function CreateScreen() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
+  const [categoryGroup, setCategoryGroup] = useState<string | null>(null);
   type UploadPhase = 'idle' | 'uploading' | 'posting';
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const loading = uploadPhase !== 'idle';
@@ -51,6 +52,7 @@ export default function CreateScreen() {
     setCaption('');
     setSelectedCategory('');
     setCategorySearch('');
+    setCategoryGroup(null);
     setUploadPhase('idle');
     setIsWidescreen(false);
   };
@@ -199,7 +201,7 @@ export default function CreateScreen() {
         // Brief pause so the backend finishes indexing before the feed reloads
         await new Promise(resolve => setTimeout(resolve, 1500));
         resetAll();
-        router.replace('/');
+        router.replace('/(tabs)' as any);
       } else {
         Alert.alert('Error', result.error || 'Something went wrong.');
         setUploadPhase('idle');
@@ -211,10 +213,16 @@ export default function CreateScreen() {
     }
   };
 
-  const filteredCategories = useMemo(() => {
+  const searchResults = useMemo(() => {
     const q = categorySearch.trim().toLowerCase();
-    return q ? ALL_CATEGORIES.filter(c => c.toLowerCase().includes(q)) : ALL_CATEGORIES;
+    if (!q) return null;
+    return ALL_CATEGORIES.filter(c => c.toLowerCase().includes(q));
   }, [categorySearch]);
+
+  const activeGroup = useMemo(
+    () => CATEGORY_GROUPS.find(g => g.label === categoryGroup) ?? null,
+    [categoryGroup]
+  );
 
   // ─── Step 1: Pick media ───────────────────────────────────────────────────
 
@@ -357,12 +365,20 @@ export default function CreateScreen() {
         <Text style={styles.sectionLabel}>CATEGORY</Text>
         <Pressable
           style={styles.categorySelector}
-          onPress={() => setCategoryModalVisible(true)}
+          onPress={() => { setCategoryGroup(null); setCategorySearch(''); setCategoryModalVisible(true); }}
           disabled={loading}
         >
-          <Text style={[styles.categorySelectorText, !selectedCategory && styles.categorySelectorPlaceholder]}>
-            {selectedCategory || 'Choose a category...'}
-          </Text>
+          {selectedCategory ? (
+            <View style={styles.categorySelectorFilled}>
+              <Text style={styles.categorySelectorGroup}>
+                {CATEGORY_GROUPS.find(g => g.items.includes(selectedCategory))?.emoji}{' '}
+                {CATEGORY_GROUPS.find(g => g.items.includes(selectedCategory))?.label}
+              </Text>
+              <Text style={styles.categorySelectorSub}>{selectedCategory}</Text>
+            </View>
+          ) : (
+            <Text style={styles.categorySelectorPlaceholder}>Choose a category...</Text>
+          )}
           <Ionicons name="chevron-down" size={18} color="#FFC300" />
         </Pressable>
 
@@ -380,50 +396,84 @@ export default function CreateScreen() {
           <Pressable style={styles.modalBackdrop} onPress={() => setCategoryModalVisible(false)} />
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose a Category</Text>
+              {activeGroup ? (
+                <Pressable onPress={() => { setCategoryGroup(null); setCategorySearch(''); }} hitSlop={10} style={styles.modalBack}>
+                  <Ionicons name="arrow-back" size={20} color="#FFC300" />
+                  <Text style={styles.modalBackText}>{activeGroup.emoji} {activeGroup.label}</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.modalTitle}>Choose a Category</Text>
+              )}
               <Pressable onPress={() => setCategoryModalVisible(false)} hitSlop={10}>
                 <Ionicons name="close" size={24} color="#888888" />
               </Pressable>
             </View>
 
-            <View style={styles.categorySearchRow}>
-              <Ionicons name="search" size={16} color="#888888" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.categorySearchInput}
-                placeholder="Search categories..."
-                placeholderTextColor="#888888"
-                value={categorySearch}
-                onChangeText={setCategorySearch}
-                autoCorrect={false}
-                autoCapitalize="none"
-                inputAccessoryViewID={KEYBOARD_DONE_ID}
-              />
-              {categorySearch.length > 0 && (
-                <Pressable onPress={() => setCategorySearch('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color="#888888" />
-                </Pressable>
-              )}
-            </View>
+            {/* Search — only shown at top level */}
+            {!activeGroup && (
+              <View style={styles.categorySearchRow}>
+                <Ionicons name="search" size={16} color="#888888" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.categorySearchInput}
+                  placeholder="Search all categories..."
+                  placeholderTextColor="#888888"
+                  value={categorySearch}
+                  onChangeText={setCategorySearch}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  inputAccessoryViewID={KEYBOARD_DONE_ID}
+                />
+                {categorySearch.length > 0 && (
+                  <Pressable onPress={() => setCategorySearch('')} hitSlop={8}>
+                    <Ionicons name="close-circle" size={16} color="#888888" />
+                  </Pressable>
+                )}
+              </View>
+            )}
 
             <ScrollView style={styles.categoryList} keyboardShouldPersistTaps="handled">
-              {filteredCategories.map(cat => (
-                <Pressable
-                  key={cat}
-                  style={[styles.categoryOption, selectedCategory === cat && styles.categoryOptionActive]}
-                  onPress={() => {
-                    setSelectedCategory(cat);
-                    setCategorySearch('');
-                    setCategoryModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.categoryOptionText, selectedCategory === cat && styles.categoryOptionTextActive]}>
-                    {cat}
-                  </Text>
-                  {selectedCategory === cat && (
-                    <Ionicons name="checkmark" size={18} color="#FFC300" />
-                  )}
-                </Pressable>
-              ))}
+              {/* Search results override everything */}
+              {searchResults ? (
+                searchResults.map(cat => (
+                  <Pressable
+                    key={cat}
+                    style={styles.categoryOption}
+                    onPress={() => { setSelectedCategory(cat); setCategorySearch(''); setCategoryGroup(null); setCategoryModalVisible(false); }}
+                  >
+                    <Text style={[styles.categoryOptionText, selectedCategory === cat && styles.categoryOptionTextActive]}>{cat}</Text>
+                    {selectedCategory === cat && <Ionicons name="checkmark" size={18} color="#FFC300" />}
+                  </Pressable>
+                ))
+              ) : activeGroup ? (
+                /* Subcategory list */
+                activeGroup.items.map(cat => (
+                  <Pressable
+                    key={cat}
+                    style={styles.categoryOption}
+                    onPress={() => { setSelectedCategory(cat); setCategoryGroup(null); setCategoryModalVisible(false); }}
+                  >
+                    <Text style={[styles.categoryOptionText, selectedCategory === cat && styles.categoryOptionTextActive]}>{cat}</Text>
+                    {selectedCategory === cat && <Ionicons name="checkmark" size={18} color="#FFC300" />}
+                  </Pressable>
+                ))
+              ) : (
+                /* Group list */
+                CATEGORY_GROUPS.map(group => (
+                  <Pressable
+                    key={group.label}
+                    style={styles.groupOption}
+                    onPress={() => setCategoryGroup(group.label)}
+                  >
+                    <Text style={styles.groupEmoji}>{group.emoji}</Text>
+                    <View style={styles.groupOptionText}>
+                      <Text style={styles.groupOptionLabel}>{group.label}</Text>
+                      <Text style={styles.groupOptionCount}>{group.items.length} categories</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#444444" />
+                  </Pressable>
+                ))
+              )}
+              <View style={{ height: 32 }} />
             </ScrollView>
           </View>
         </View>
@@ -517,8 +567,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#111111', borderRadius: 14, padding: 16, marginBottom: 20,
     borderWidth: 1, borderColor: '#333333',
   },
-  categorySelectorText: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
-  categorySelectorPlaceholder: { color: '#888888', fontWeight: '400' },
+  categorySelectorFilled: { flex: 1, gap: 2 },
+  categorySelectorGroup: { fontSize: 11, fontWeight: '700', color: '#FFC300', letterSpacing: 0.5 },
+  categorySelectorSub: { fontSize: 15, color: '#FFFFFF', fontWeight: '600' },
+  categorySelectorPlaceholder: { color: '#888888', fontWeight: '400', flex: 1 },
 
   guidelinesBox: { backgroundColor: '#111111', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#FFC300' },
   guidelinesTitle: { fontSize: 13, fontWeight: '700', color: '#FFC300', marginBottom: 8 },
@@ -557,11 +609,20 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: '#FFC300', minWidth: 200,
   },
   uploadPhaseText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  modalBack: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  modalBackText: { fontSize: 16, fontWeight: '700', color: '#FFC300' },
+  groupOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A',
+  },
+  groupEmoji: { fontSize: 26, width: 36, textAlign: 'center' },
+  groupOptionText: { flex: 1, gap: 2 },
+  groupOptionLabel: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  groupOptionCount: { fontSize: 12, color: '#555555' },
   categoryOption: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 15, borderBottomWidth: 0.5, borderBottomColor: '#1A1A1A',
   },
-  categoryOptionActive: { },
   categoryOptionText: { fontSize: 16, color: '#FFFFFF' },
   categoryOptionTextActive: { color: '#FFC300', fontWeight: '700' },
 });

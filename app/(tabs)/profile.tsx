@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
@@ -276,7 +276,7 @@ export default function ProfileScreen() {
           {!editing && (
             <>
               <Text style={styles.name}>{name}</Text>
-              <Text style={styles.handle}>{handle}</Text>
+              <Text style={styles.handle}>@{handle.replace(/^@+/, '')}</Text>
               {category.length > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{category}</Text>
@@ -418,7 +418,7 @@ export default function ProfileScreen() {
                   {myPosts.map(post => {
                     const cellSize = (width - 32 - 4) / 3;
                     return (
-                      <View key={post.id} style={[styles.gridCell, { width: cellSize, height: cellSize }]}>
+                      <Pressable key={post.id} style={[styles.gridCell, { width: cellSize, height: cellSize }]} onPress={() => router.push(`/post/${post.id}` as any)}>
                         {post.image_url ? (
                           <Image source={{ uri: post.image_url }} style={styles.gridImage} resizeMode="cover" />
                         ) : (
@@ -429,7 +429,7 @@ export default function ProfileScreen() {
                         <View style={styles.gridSmiles}>
                           <Text style={styles.gridSmilesText}>♡ {post.smile_count}</Text>
                         </View>
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>

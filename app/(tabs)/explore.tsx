@@ -146,7 +146,7 @@ function normalizeUser(raw: any): ConnectUser {
   return {
     id: String(raw.id),
     name: raw.name ?? 'Unknown',
-    handle: raw.handle ? `@${raw.handle}` : '@user',
+    handle: raw.handle ? `@${String(raw.handle).replace(/^@+/, '')}` : '@user',
     avatarUrl: raw.avatar_url ?? null,
     bio: raw.bio ?? '',
     category: raw.category ?? '',

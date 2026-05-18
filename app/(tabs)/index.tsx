@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -172,6 +172,7 @@ export default function HomeScreen() {
   const [trendingFilterVisible, setTrendingFilterVisible] = useState(false);
   const [trendingCategorySearch, setTrendingCategorySearch] = useState('');
   const nextCursorRef = useRef<string | null>(null);
+  const feedModeInitializedRef = useRef(false);
   const menuAnim = useRef(new Animated.Value(-MENU_WIDTH)).current;
   const commentAnim = useRef(new Animated.Value(commentDrawerHiddenX)).current;
   const commentOpacity = useRef(new Animated.Value(0)).current;
@@ -282,7 +283,14 @@ export default function HomeScreen() {
     }
   }, [loadingMore, hasMore, feedMode]);
 
-  useEffect(() => { void loadPosts(); }, [feedMode, trendingCategory]);
+  useFocusEffect(useCallback(() => { void loadPosts(); }, [loadPosts]));
+
+  useEffect(() => {
+    // Skip the initial mount — useFocusEffect handles the first load.
+    // Only re-fetch when the user actively changes the feed mode.
+    if (!feedModeInitializedRef.current) { feedModeInitializedRef.current = true; return; }
+    void loadPosts();
+  }, [feedMode, trendingCategory]);
 
   useEffect(() => {
     if (feedMode !== 'trending') setTrendingCategory(null);
@@ -778,8 +786,16 @@ export default function HomeScreen() {
       ) : posts.length === 0 ? (
         <View style={styles.errorState}>
           <Text style={styles.errorStateIcon}>✦</Text>
-          <Text style={styles.errorStateText}>Nothing here yet</Text>
-          <Text style={styles.errorStateSub}>Be the first to share something</Text>
+          <Text style={styles.errorStateText}>
+            {feedMode === 'foryou' ? 'No posts match your interests' : 'Nothing here yet'}
+          </Text>
+          <Text style={styles.errorStateSub}>
+            {feedMode === 'foryou'
+              ? 'Update your interests in your profile to see personalised posts'
+              : feedMode === 'trending'
+              ? 'No trending posts yet — check back soon'
+              : 'Be the first to share something'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -1079,7 +1095,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
   },
   header: {
     paddingTop: 60,
@@ -1144,11 +1160,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    backgroundColor: '#F7F7F7',
+    backgroundColor: '#000000',
   },
   loadingText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#888888',
     fontWeight: '600',
   },
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 40, backgroundColor: '#000000' },
@@ -1160,14 +1176,14 @@ const styles = StyleSheet.create({
   loadMoreFooter: { height: 60, alignItems: 'center', justifyContent: 'center' },
   feed: {
     flex: 1,
-    backgroundColor: '#F7F7F7',
+    backgroundColor: '#000000',
   },
   feedContent: {},
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#111111',
     marginHorizontal: PORTRAIT_CARD_HORIZONTAL_MARGIN,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#222222',
     overflow: 'hidden',
     borderRadius: 16,
   },
@@ -1246,7 +1262,7 @@ const styles = StyleSheet.create({
   cardUser: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   cardHandle: {
     fontSize: 11,
@@ -1255,7 +1271,7 @@ const styles = StyleSheet.create({
   },
   imageCardContainer: {
     flex: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#111111',
   },
   cardImage: {
     flex: 1,
@@ -1310,12 +1326,12 @@ const styles = StyleSheet.create({
     left: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#111111',
     zIndex: 1,
   },
   cardText: {
     fontSize: 14,
-    color: '#000000',
+    color: '#CCCCCC',
     lineHeight: 20,
     padding: 12,
     paddingBottom: 4,
@@ -1353,12 +1369,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 20,
     borderTopWidth: 0.5,
-    borderTopColor: '#E0E0E0',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: '#222222',
+    backgroundColor: '#111111',
   },
   actionsDark: {
     backgroundColor: '#000000',
-    borderTopColor: '#222222',
+    borderTopColor: '#1A1A1A',
   },
   actionBtn: {
     flexDirection: 'row',

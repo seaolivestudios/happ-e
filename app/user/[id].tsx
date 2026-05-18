@@ -54,6 +54,10 @@ export default function UserProfileScreen() {
   }, [id]);
 
   const load = async () => {
+    if (!id || isNaN(Number(id))) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [profileRes, me, token] = await Promise.all([
@@ -122,7 +126,14 @@ export default function UserProfileScreen() {
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>User not found</Text>
+        <Pressable onPress={() => router.back()} style={{ position: 'absolute', top: 60, left: 20 }}>
+          <Ionicons name="arrow-back" size={24} color="#FFC300" />
+        </Pressable>
+        <Text style={{ fontSize: 32, marginBottom: 12 }}>👤</Text>
+        <Text style={styles.errorText}>This account isn't available</Text>
+        <Text style={{ fontSize: 13, color: '#555555', marginTop: 6, textAlign: 'center', paddingHorizontal: 40 }}>
+          It may have been deleted or never existed.
+        </Text>
       </View>
     );
   }
@@ -135,7 +146,7 @@ export default function UserProfileScreen() {
         <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#FFC300" />
         </Pressable>
-        <Text style={styles.headerHandle}>{user.handle}</Text>
+        <Text style={styles.headerHandle}>@{user.handle.replace(/^@+/, '')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -149,7 +160,7 @@ export default function UserProfileScreen() {
             </View>
           )}
           <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.handle}>{user.handle}</Text>
+          <Text style={styles.handle}>@{user.handle.replace(/^@+/, '')}</Text>
           {user.category ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{user.category}</Text>

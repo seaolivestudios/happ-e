@@ -17,6 +17,7 @@ export const INTEREST_CATEGORIES: InterestSection[] = [
       { id: 's10', label: 'Surfing', emoji: '🏄' },
       { id: 's11', label: 'Skiing', emoji: '⛷️' },
       { id: 's12', label: 'Wrestling', emoji: '🤼' },
+      { id: 's13', label: 'Formula 1', emoji: '🏎️' },
     ],
   },
   {
