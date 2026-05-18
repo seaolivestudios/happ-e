@@ -197,7 +197,7 @@ export default function CreateScreen() {
       const result = await api.createPost(payload, token);
       if (result.success || result.post) {
         // Brief pause so the backend finishes indexing before the feed reloads
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 1500));
         resetAll();
         router.replace('/');
       } else {

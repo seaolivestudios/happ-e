@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -62,9 +63,9 @@ export default function ProfileScreen() {
   const [interestsSaving, setInterestsSaving] = useState(false);
   const [interestsLoading, setInterestsLoading] = useState(false);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useFocusEffect(useCallback(() => {
+    void loadProfile();
+  }, []));
 
   const loadProfile = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
